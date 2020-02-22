@@ -8,6 +8,8 @@ let blockListPath = path.join(__dirname, 'blockList.json')
 let blockList = JSON.parse(fs.readFileSync(blockListPath, 'utf8'))
 console.log(blockList)
 blockList.blockedURLs.push('matrix.netsoc.ie')
+
+let cache = {}
 // blockList = {blockedURLs:[]}
 // fs.writeFile(blockListPath, JSON.stringify(blockList), ()=>{})
 
@@ -34,6 +36,8 @@ server.on('connection', (clientProxyConn) => {
         let reqData = getAddrAndPort(theData)
         // console.log(reqData)
 
+        // console.log({theData:theData, cacheControl:theData.split('Cache-Control: ')[1].split('\r\n\r\n')[0]})
+
         if (blockList.blockedURLs.includes(reqData.host)) {
             clientProxyConn.write('HTTP/1.1 403 FORBIDDEN\r\n\n')
             clientProxyConn.end()
@@ -41,12 +45,15 @@ server.on('connection', (clientProxyConn) => {
             var blocked = true
         }
 
-
         if (!blocked) {
             let toServerConn = net.createConnection({
                 host: reqData.host,
                 port: reqData.port
             }, () => {
+                // console.log({theData:theData, cacheControl:theData.split('Cache-Control: ')[1].split('\r\n\r\n')[0]})
+
+
+
                 //if is HTTPS, confirm connection
                 //else send the request to the server
                 if (reqData.isHTTPS)
@@ -56,7 +63,16 @@ server.on('connection', (clientProxyConn) => {
 
                 //Don't manually handle subsequent data streams, this is easier, faster and uses less memory
                 //readableSrc.pipe(writableDest)
-                clientProxyConn.pipe(toServerConn).pipe(clientProxyConn)
+                if(reqData.isHTTPS){
+                    clientProxyConn.pipe(toServerConn).pipe(clientProxyConn)
+                }else{
+                    toServerConn.on('data', (resData) =>{
+                        console.log(resData.toString())
+                    })
+
+                }
+
+
 
                 console.log({Message:'Connection Established', 
                              Hostname: reqData.host,
@@ -75,7 +91,7 @@ server.on('connection', (clientProxyConn) => {
                 console.error({ 'Client Error': err })
             })
             clientProxyConn.on('close', () => {
-                console.warn({ 'Client closed conn': `${reqData.host}:${reqData.port}` })
+                console.warn({ 'Client Closed Conn': `${reqData.host}:${reqData.port}` })
             })
         }else{
             console.log({Message:'Connection Blocked', 
