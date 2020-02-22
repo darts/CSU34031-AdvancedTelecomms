@@ -26,9 +26,6 @@ server.on('error', (err) => {
 //TODO make this multithreaded, maybe workers with credentials?
 //Client should only connect once so we can thread this bit
 server.on('connection', (clientProxyConn) => {
-    // console.log(`New client connection!`)
-    // console.log(clientProxySocket)
-
     //create the connection
     clientProxyConn.once('data', (data) => {
         let theData = data.toString()
@@ -50,8 +47,6 @@ server.on('connection', (clientProxyConn) => {
                 host: reqData.host,
                 port: reqData.port
             }, () => {
-                // console.log(`Connected to server`)
-
                 //if is HTTPS, confirm connection
                 //else send the request to the server
                 if (reqData.isHTTPS)
@@ -59,17 +54,8 @@ server.on('connection', (clientProxyConn) => {
                 else
                     toServerConn.write(data)
 
-
                 //Don't manually handle subsequent data streams, this is easier, faster and uses less memory
                 //readableSrc.pipe(writableDest)
-
-                //Pipe data coming from the client to the server
-                // clientProxyConn.pipe(toServerConn)
-
-                //Pipe data coming from the server to the client
-                // toServerConn.pipe(clientProxyConn)
-
-                //pretty sure this can be written as:
                 clientProxyConn.pipe(toServerConn).pipe(clientProxyConn)
 
                 console.log({Message:'Connection Established', 
@@ -126,8 +112,6 @@ let getAddrAndPort = (data) => {
     return hostData
 }
 
-server.listen(port)
-
-server.on('listening', ()=>{
+server.listen(port,()=>{
     console.log(`Server running on: ${server.address().address !== '::' ? server.address().address:'localhost'}:${server.address().port}`)
 })
