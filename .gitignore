@@ -105,3 +105,7 @@ dist
 
 # Stores VSCode versions used for testing VSCode extensions
 .vscode-test
+.DS_Store
+Key/
+Project-1/test.js
+Project-1/test.js
