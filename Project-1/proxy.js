@@ -6,7 +6,6 @@ const port = 4000
 const stdin = process.openStdin();
 const blockListName = 'blockList.json'
 const blockListPath = path.join(__dirname, blockListName)
-const iconv = require('iconv').Iconv
 let verbose = true
 
 /**
@@ -69,67 +68,7 @@ server.on('connection', (clientProxyConn) => {
                     if (!cachedRes) {
                         toServerConn.write(data)
                         toServerConn.on('data', (resData) => {
-                            // clientProxyConn.write()
-                            // clientProxyConn.write(resData.toJSON().data)
-                            // resData.toJSON().data.forEach((e) =>{
-                            //     clientProxyConn.write(e)
-                            // })
-                            // let tmpBuffer = new Buffer()
-                            // resData.forEach((e) =>{
-                            //     tmpBuffer.
-                            // })
-                            // console.log(resData)
-                            // let iconv = new Iconv('latin1', 'utf-8');
-                            // let str = iconv.convert(resData).toString();
-                            // console.log(str);
-                            // clientProxyConn.write(Buffer.from(str, 'binary'))
-
-                            // resData = Buffer.from(resData)
                             clientProxyConn.write(resData)
-                            // let test = resData.toString('binary')
-                            // console.log(test)
-                            // let estTest = Buffer.from(test, 'binary')
-                            // clientProxyConn.write(estTest)
-
-
-                            // console.log(resData.isEncoding('ascii'))
-                            // console.log(resData.isEncoding('utf8'))
-                            // console.log(resData.isEncoding('utf16le'))
-                            // console.log(resData.isEncoding('ucs2'))
-                            // console.log(resData.isEncoding('base64'))
-                            // console.log(resData.isEncoding('latin1'))
-                            // console.log(resData.isEncoding('binary'))
-                            // console.log(resData.isEncoding('hex'))
-                            
-                            // let tmpBuffer = Buffer().alloc(resData.length)
-                            // resData.forEach((e) =>{
-                            //     tmpBuffer.
-                            // })
-
-                            // console.log({lBytes:resData.byteLength, len:resData.length})
-
-                            // let tmp = resData.toJSON()
-                            // // console.log({resData:resData.toJSON()})
-                            // resData = Buffer.from(resData.toString()).slice(0,resData.length)
-                            // // console.log({resData:resData.toJSON()})
-                            // let nonMatch = []
-
-                            // for(let i = 0; i < tmp.data.length; i++){
-                            //     let e = tmp.data[tmp.data.length -i]
-                            //     if(e != resData[resData.length-i])
-                            //         nonMatch.push({e:e, i:i})
-
-                            // }
-
-                            // tmp.data.forEach((e,i) =>{
-                            //     if(e != resData[i])
-                            //         nonMatch.push({e:e, i:i})
-                            // })
-                            // console.log({nonMatch:nonMatch})
-                            // resData = resData.toString('utf8')
-                            // console.log(resData.toJSON())
-                            // clientProxyConn.write('HTML ::' + Buffer.from(resData))
-                            // clientProxyConn.write(resData)
                             addToCache(resData, reqData.rawURL)
                         })
                     }else{
@@ -284,8 +223,6 @@ let getFromCache = (url) => {
             // return false
             // btoa(cachedStr)
             // cachedStr = btoa(cachedStr)
-            // let iconv = new Iconv('utf-8', 'latin1');
-            // cachedStr = iconv.convert(cachedStr).toString();
 
             cachedStr = Buffer.from(cachedStr,'binary')
             console.log(cachedStr)
@@ -305,8 +242,6 @@ let getFromCache = (url) => {
  */
 let addToCache = (responseBuffer, url) => {
     let parsedBuffer = responseBuffer.toString('binary')
-    // let iconv = new Iconv('latin1', 'utf-8');
-    // let parsedBuffer = iconv.convert(responseBuffer).toString();
 
 
     if (parsedBuffer.includes('Cache-Control: max-age=')) {
