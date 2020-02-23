@@ -3,16 +3,20 @@ const fs = require('fs')
 const path = require('path')
 const server = net.createServer()
 const port = 4000
+const stdin = process.openStdin();
+const blockListName = 'blockList.json'
+const blockListPath = path.join(__dirname, blockListName)
 
-let blockListPath = path.join(__dirname, 'blockList.json')
-let blockList = JSON.parse(fs.readFileSync(blockListPath, 'utf8'))
-console.log(blockList)
-blockList.blockedURLs.push('matrix.netsoc.ie')
+/**
+ * Read and return blocklist  
+ * @return {{blockedURLs:Array}}
+ */
+let readBlockList = () => {
+    return JSON.parse(fs.readFileSync(blockListPath, 'utf8'))
+}
+let blockList = readBlockList()
 
 let cache = {}
-// blockList = {blockedURLs:[]}
-// fs.writeFile(blockListPath, JSON.stringify(blockList), ()=>{})
-
 
 //No clients connected 
 server.on('close', () => {
@@ -34,10 +38,6 @@ server.on('connection', (clientProxyConn) => {
         // console.log(theData) //print the data
 
         let reqData = getAddrAndPort(theData)
-        // console.log(reqData)
-
-        // console.log({theData:theData, cacheControl:theData.split('Cache-Control: ')[1].split('\r\n\r\n')[0]})
-
         if (blockList.blockedURLs.includes(reqData.host)) {
             clientProxyConn.write('HTTP/1.1 403 FORBIDDEN\r\n\n')
             clientProxyConn.end()
@@ -63,10 +63,10 @@ server.on('connection', (clientProxyConn) => {
 
                 //Don't manually handle subsequent data streams, this is easier, faster and uses less memory
                 //readableSrc.pipe(writableDest)
-                if(reqData.isHTTPS){
+                if (reqData.isHTTPS) {
                     clientProxyConn.pipe(toServerConn).pipe(clientProxyConn)
-                }else{
-                    toServerConn.on('data', (resData) =>{
+                } else {
+                    toServerConn.on('data', (resData) => {
                         console.log(resData.toString())
                     })
 
@@ -74,10 +74,12 @@ server.on('connection', (clientProxyConn) => {
 
 
 
-                console.log({Message:'Connection Established', 
-                             Hostname: reqData.host,
-                             Port: reqData.port,
-                             HTTPS: reqData.isHTTPS})
+                console.log({
+                    Message: 'Connection Established',
+                    Hostname: reqData.host,
+                    Port: reqData.port,
+                    HTTPS: reqData.isHTTPS
+                })
 
                 toServerConn.on('error', (err) => {
                     console.error({ 'Server Error': err })
@@ -93,11 +95,13 @@ server.on('connection', (clientProxyConn) => {
             clientProxyConn.on('close', () => {
                 console.warn({ 'Client Closed Conn': `${reqData.host}:${reqData.port}` })
             })
-        }else{
-            console.log({Message:'Connection Blocked', 
-                         Hostname: reqData.host,
-                         Port: reqData.port,
-                         HTTPS: reqData.isHTTPS})
+        } else {
+            console.log({
+                Message: 'Connection Blocked',
+                Hostname: reqData.host,
+                Port: reqData.port,
+                HTTPS: reqData.isHTTPS
+            })
         }
     })
 })
@@ -128,6 +132,55 @@ let getAddrAndPort = (data) => {
     return hostData
 }
 
-server.listen(port,()=>{
-    console.log(`Server running on: ${server.address().address !== '::' ? server.address().address:'localhost'}:${server.address().port}`)
+server.listen(port, () => {
+    console.log(`Server running on: ${server.address().address !== '::' ? server.address().address : 'localhost'}:${server.address().port}`)
 })
+
+stdin.addListener('data', (data) => {
+    handleInput(data.toString().trim())
+})
+
+
+/**
+ * Handles the strings input by the user
+ * 
+ * @param {String} consoleInput The console input stringified and trimmed  
+ * 
+ * Commands:   
+ * block <domain> - adds domain to blocklist  
+ * unblock <domain> - removes domain from blocklist  
+ * cache - enables caching  
+ * nocache - disables caching  
+ */
+let handleInput = (consoleInput) => {
+    let splitData = consoleInput.split(' ')
+    let keyword = splitData[0]
+    let param = splitData[1]
+    switch (keyword) {
+        case 'block':
+            if (!blockList.blockedURLs.includes(param)) {
+                blockList.blockedURLs.push(param)
+                writeBlockList(blockList)
+            } else {
+                console.warn(`${param}, has already been blocked!`)
+            }
+            break;
+
+        default:
+            console.error(`Input not recognised: ${keyword}, is not a keyword`)
+            break;
+    }
+}
+
+/**
+ * Write updated blocklist  
+ * @param {blockList}  
+ */
+let writeBlockList = (blockList) => {
+    fs.writeFile(blockListPath, JSON.stringify(blockList), (err) => {
+        if (err)
+            console.error(`Could not write updated blocklist to disk!`)
+        else
+            console.log(`Updated blocklist written to disk`)
+    })
+}
