@@ -6,6 +6,7 @@ const port = 4000
 const stdin = process.openStdin();
 const blockListName = 'blockList.json'
 const blockListPath = path.join(__dirname, blockListName)
+const iconv = require('iconv').Iconv
 let verbose = true
 
 /**
@@ -77,13 +78,20 @@ server.on('connection', (clientProxyConn) => {
                             // resData.forEach((e) =>{
                             //     tmpBuffer.
                             // })
+                            // console.log(resData)
+                            // let iconv = new Iconv('latin1', 'utf-8');
+                            // let str = iconv.convert(resData).toString();
+                            // console.log(str);
+                            // clientProxyConn.write(Buffer.from(str, 'binary'))
 
-                            resData = Buffer.from(resData)
-                            // clientProxyConn.write(resData)
-                            let test = resData.toString('binary').split('48')
-                            console.log(test)
-                            let estTest = Buffer.from(test[0], 'utf8')
-                            clientProxyConn.write(estTest)
+                            // resData = Buffer.from(resData)
+                            clientProxyConn.write(resData)
+                            // let test = resData.toString('binary')
+                            // console.log(test)
+                            // let estTest = Buffer.from(test, 'binary')
+                            // clientProxyConn.write(estTest)
+
+
                             // console.log(resData.isEncoding('ascii'))
                             // console.log(resData.isEncoding('utf8'))
                             // console.log(resData.isEncoding('utf16le'))
@@ -124,6 +132,8 @@ server.on('connection', (clientProxyConn) => {
                             // clientProxyConn.write(resData)
                             addToCache(resData, reqData.rawURL)
                         })
+                    }else{
+                        clientProxyConn.write(cachedRes)
                     }
                 }
 
@@ -274,7 +284,11 @@ let getFromCache = (url) => {
             // return false
             // btoa(cachedStr)
             // cachedStr = btoa(cachedStr)
+            // let iconv = new Iconv('utf-8', 'latin1');
+            // cachedStr = iconv.convert(cachedStr).toString();
+
             cachedStr = Buffer.from(cachedStr,'binary')
+            console.log(cachedStr)
 
             return cachedStr
         } else {
@@ -291,6 +305,10 @@ let getFromCache = (url) => {
  */
 let addToCache = (responseBuffer, url) => {
     let parsedBuffer = responseBuffer.toString('binary')
+    // let iconv = new Iconv('latin1', 'utf-8');
+    // let parsedBuffer = iconv.convert(responseBuffer).toString();
+
+
     if (parsedBuffer.includes('Cache-Control: max-age=')) {
         let expiryTime = parsedBuffer.split('Cache-Control: max-age=')[1].split('\r\n')[0]
         if (expiryTime) {
