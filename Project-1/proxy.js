@@ -6,6 +6,7 @@ const port = 4000
 const stdin = process.openStdin();
 const blockListName = 'blockList.json'
 const blockListPath = path.join(__dirname, blockListName)
+let verbose = true
 
 /**
  * Read and return blocklist  
@@ -56,30 +57,30 @@ server.on('connection', (clientProxyConn) => {
 
                 //if is HTTPS, confirm connection
                 //else send the request to the server
-                if (reqData.isHTTPS)
+                if (reqData.isHTTPS){
                     clientProxyConn.write('HTTP/1.1 200 OK\r\n\n')
-                else
-                    toServerConn.write(data)
-
-                //Don't manually handle subsequent data streams, this is easier, faster and uses less memory
-                //readableSrc.pipe(writableDest)
-                if (reqData.isHTTPS) {
+                    //Don't manually handle subsequent data streams, this is easier, faster and uses less memory
+                    //readableSrc.pipe(writableDest)
                     clientProxyConn.pipe(toServerConn).pipe(clientProxyConn)
-                } else {
-                    toServerConn.on('data', (resData) => {
-                        console.log(resData.toString())
-                    })
-
+                }else{
+                    console.log(reqData)
+                    let cachedRes = getFromCache(reqData.rawURL)
+                    if(!cachedRes){
+                        toServerConn.write(data)
+                        toServerConn.on('data', (resData) =>{
+                            clientProxyConn.write(resData)
+                            addToCache(resData, reqData.rawURL)
+                        })
+                    }
                 }
 
-
-
-                console.log({
-                    Message: 'Connection Established',
-                    Hostname: reqData.host,
-                    Port: reqData.port,
-                    HTTPS: reqData.isHTTPS
-                })
+                if (verbose)
+                    console.log({
+                        Message: 'Connection Established',
+                        Hostname: reqData.host,
+                        Port: reqData.port,
+                        HTTPS: reqData.isHTTPS
+                    })
 
                 toServerConn.on('error', (err) => {
                     console.error({ 'Server Error': err })
@@ -96,12 +97,13 @@ server.on('connection', (clientProxyConn) => {
                 console.warn({ 'Client Closed Conn': `${reqData.host}:${reqData.port}` })
             })
         } else {
-            console.log({
-                Message: 'Connection Blocked',
-                Hostname: reqData.host,
-                Port: reqData.port,
-                HTTPS: reqData.isHTTPS
-            })
+            if (verbose)
+                console.log({
+                    Message: 'Connection Blocked',
+                    Hostname: reqData.host,
+                    Port: reqData.port,
+                    HTTPS: reqData.isHTTPS
+                })
         }
     })
 })
@@ -110,7 +112,7 @@ server.on('connection', (clientProxyConn) => {
 /**
  * Parses out: hostname, port and if a connection is HTTPS
  * @param {string} data data object stringified
- * @returns {{host:string, port:string, isHTTPS:boolean}} hostname, port and whether the connection is using HTTPS
+ * @returns {{host:string, port:string, isHTTPS:boolean, rawURL:string}} hostname, port, whether the connection is using HTTPS and the full path trying to be accessed (if HTTP)
  */
 let getAddrAndPort = (data) => {
     let hostData = []
@@ -124,6 +126,7 @@ let getAddrAndPort = (data) => {
         hostData['host'] = splitStr[0]
         hostData['port'] = splitStr[1]
     } else {
+        hostData['rawURL'] = data.split('http://')[1].split(' ')[0]
         let splitStr = data.split(`Host: `)[1].split(`\r\n`)[0].split(`:`)
         hostData['host'] = splitStr[0]
         //HTTP defaults to port 80 but just in case...
@@ -151,6 +154,8 @@ stdin.addListener('data', (data) => {
  * unblock <domain> - removes domain from blocklist  
  * cache - enables caching  
  * nocache - disables caching  
+ * verbose - prints all connections to console  
+ * noverbose - disables printing of all connections to console  
  */
 let handleInput = (consoleInput) => {
     let splitData = consoleInput.split(' ')
@@ -164,11 +169,24 @@ let handleInput = (consoleInput) => {
             } else {
                 console.warn(`${param}, has already been blocked!`)
             }
-            break;
-
+            break
+        case 'unblock':
+            if (blockList.blockedURLs.includes(param)) {
+                blockList.blockedURLs.splice(blockList.blockedURLs.indexOf(param), 1)
+                writeBlockList(blockList)
+            } else {
+                console.warn(`${param}, was not blacklisted!`)
+            }
+            break
+        case 'verbose':
+            verbose = true
+            break
+        case 'noverbose':
+            verbose = false
+            break
         default:
             console.error(`Input not recognised: ${keyword}, is not a keyword`)
-            break;
+            break
     }
 }
 
@@ -183,4 +201,42 @@ let writeBlockList = (blockList) => {
         else
             console.log(`Updated blocklist written to disk`)
     })
+}
+
+/**
+ * @param {string} url The requested URL  
+ * @return {{cacheObj}}
+ */
+let getFromCache = (url) =>{
+    if(cache[url]){
+
+        return cache[url]
+    }
+    return false
+}
+
+
+/**
+ * @param {Buffer} responseBuffer The raw data response from the server
+ */
+let addToCache = (responseBuffer, url) =>{
+    let parsedBuffer = responseBuffer.toString()
+    let expiryTime = parsedBuffer.split('Cache-Control: max-age=')[1].split('\r\n')[0]
+    if(expiryTime){
+        expiryTime = parseInt(expiryTime) + (Date.now()/1000)
+        let ageSplit = parsedBuffer.split('Age: ')
+        let secondHalfData = ageSplit[1].split('\r\n')
+        let age = secondHalfData[0]
+        if(age){
+            expiryTime -= parseInt(age)
+        }
+    console.log(parsedBuffer)
+        cache[url] = {
+            expiryTime: expiryTime,
+            firstHalfData: ageSplit[1] + 'Age: ',
+            secondHalfData: '\r\n' + secondHalfData[1]
+        }
+    }else{
+        console.log(`Could not cache response from: ${url}, due to header parameters`)
+    }
 }
