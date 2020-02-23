@@ -78,9 +78,21 @@ server.on('connection', (clientProxyConn) => {
                             //     tmpBuffer.
                             // })
 
-
-                            clientProxyConn.write(resData)
-                            console.log(resData.isEncoding('ascii'))
+                            resData = Buffer.from(resData)
+                            // clientProxyConn.write(resData)
+                            let test = resData.toString('binary').split('48')
+                            console.log(test)
+                            let estTest = Buffer.from(test[0], 'utf8')
+                            clientProxyConn.write(estTest)
+                            // console.log(resData.isEncoding('ascii'))
+                            // console.log(resData.isEncoding('utf8'))
+                            // console.log(resData.isEncoding('utf16le'))
+                            // console.log(resData.isEncoding('ucs2'))
+                            // console.log(resData.isEncoding('base64'))
+                            // console.log(resData.isEncoding('latin1'))
+                            // console.log(resData.isEncoding('binary'))
+                            // console.log(resData.isEncoding('hex'))
+                            
                             // let tmpBuffer = Buffer().alloc(resData.length)
                             // resData.forEach((e) =>{
                             //     tmpBuffer.
@@ -88,11 +100,11 @@ server.on('connection', (clientProxyConn) => {
 
                             // console.log({lBytes:resData.byteLength, len:resData.length})
 
-                            let tmp = resData.toJSON()
-                            // console.log({resData:resData.toJSON()})
-                            resData = Buffer.from(resData.toString()).slice(0,resData.length)
-                            // console.log({resData:resData.toJSON()})
-                            let nonMatch = []
+                            // let tmp = resData.toJSON()
+                            // // console.log({resData:resData.toJSON()})
+                            // resData = Buffer.from(resData.toString()).slice(0,resData.length)
+                            // // console.log({resData:resData.toJSON()})
+                            // let nonMatch = []
 
                             // for(let i = 0; i < tmp.data.length; i++){
                             //     let e = tmp.data[tmp.data.length -i]
@@ -101,11 +113,11 @@ server.on('connection', (clientProxyConn) => {
 
                             // }
 
-                            tmp.data.forEach((e,i) =>{
-                                if(e != resData[i])
-                                    nonMatch.push({e:e, i:i})
-                            })
-                            console.log({nonMatch:nonMatch})
+                            // tmp.data.forEach((e,i) =>{
+                            //     if(e != resData[i])
+                            //         nonMatch.push({e:e, i:i})
+                            // })
+                            // console.log({nonMatch:nonMatch})
                             // resData = resData.toString('utf8')
                             // console.log(resData.toJSON())
                             // clientProxyConn.write('HTML ::' + Buffer.from(resData))
@@ -259,8 +271,10 @@ let getFromCache = (url) => {
             // console.log(cachedStr)
             // console.log(Buffer.from(cachedStr).toJSON())
 
-            return false
-            cachedStr = Buffer.from(cachedStr).toJSON().data
+            // return false
+            // btoa(cachedStr)
+            // cachedStr = btoa(cachedStr)
+            cachedStr = Buffer.from(cachedStr,'binary')
 
             return cachedStr
         } else {
@@ -276,7 +290,7 @@ let getFromCache = (url) => {
  * @param {Buffer} responseBuffer The raw data response from the server
  */
 let addToCache = (responseBuffer, url) => {
-    let parsedBuffer = responseBuffer.toString()
+    let parsedBuffer = responseBuffer.toString('binary')
     if (parsedBuffer.includes('Cache-Control: max-age=')) {
         let expiryTime = parsedBuffer.split('Cache-Control: max-age=')[1].split('\r\n')[0]
         if (expiryTime) {
