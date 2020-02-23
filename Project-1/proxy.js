@@ -68,7 +68,48 @@ server.on('connection', (clientProxyConn) => {
                     if (!cachedRes) {
                         toServerConn.write(data)
                         toServerConn.on('data', (resData) => {
+                            // clientProxyConn.write()
+                            // clientProxyConn.write(resData.toJSON().data)
+                            // resData.toJSON().data.forEach((e) =>{
+                            //     clientProxyConn.write(e)
+                            // })
+                            // let tmpBuffer = new Buffer()
+                            // resData.forEach((e) =>{
+                            //     tmpBuffer.
+                            // })
+
+
                             clientProxyConn.write(resData)
+                            console.log(resData.isEncoding('ascii'))
+                            // let tmpBuffer = Buffer().alloc(resData.length)
+                            // resData.forEach((e) =>{
+                            //     tmpBuffer.
+                            // })
+
+                            // console.log({lBytes:resData.byteLength, len:resData.length})
+
+                            let tmp = resData.toJSON()
+                            // console.log({resData:resData.toJSON()})
+                            resData = Buffer.from(resData.toString()).slice(0,resData.length)
+                            // console.log({resData:resData.toJSON()})
+                            let nonMatch = []
+
+                            // for(let i = 0; i < tmp.data.length; i++){
+                            //     let e = tmp.data[tmp.data.length -i]
+                            //     if(e != resData[resData.length-i])
+                            //         nonMatch.push({e:e, i:i})
+
+                            // }
+
+                            tmp.data.forEach((e,i) =>{
+                                if(e != resData[i])
+                                    nonMatch.push({e:e, i:i})
+                            })
+                            console.log({nonMatch:nonMatch})
+                            // resData = resData.toString('utf8')
+                            // console.log(resData.toJSON())
+                            // clientProxyConn.write('HTML ::' + Buffer.from(resData))
+                            // clientProxyConn.write(resData)
                             addToCache(resData, reqData.rawURL)
                         })
                     }
@@ -212,10 +253,15 @@ let getFromCache = (url) => {
         let tmpCache = cache[url]
         if (tmpCache.expiryTime > (Date.now() / 1000)) {
             console.log(`Cached data for ${url}, found`)
-            let cachedStr = tmpCache.firstHalfData + (tmpCache.startTime + (Date.now() / 1000)) + tmpCache.secondHalfData
-            console.log(cachedStr)
+            let cachedStr = tmpCache.firstHalfData + (Math.floor(Date.now()/1000) - tmpCache.startTime) + tmpCache.secondHalfData
+
+
+            // console.log(cachedStr)
+            // console.log(Buffer.from(cachedStr).toJSON())
+
             return false
-            cachedStr = Buffer.from(cachedStr, 'utf-8')
+            cachedStr = Buffer.from(cachedStr).toJSON().data
+
             return cachedStr
         } else {
             console.log(`Cached data for ${url}, expired... purging`)
@@ -237,21 +283,25 @@ let addToCache = (responseBuffer, url) => {
             expiryTime = parseInt(expiryTime) + Math.floor((Date.now() / 1000))
             let ageSplit = parsedBuffer.split('Age: ')
             let secondHalfData = ageSplit[1].split('\r\n')
-
             expiryTime -= parseInt(secondHalfData[0])
-            let startTime = parseInt(secondHalfData[0] + Math.floor((Date.now() / 1000)))
-            // console.log(parsedBuffer)
+    
+            let startTime = Math.floor(Date.now()/1000) - parseInt(secondHalfData[0])
+            // let startTime = parseInt(secondHalfData[0]) + Math.floor((Date.now() / 1000))
+            // console.log(startTime)
+            secondHalfData.splice(0,1)
+            secondHalfData = secondHalfData.join('\r\n')
+            // console.log(secondHalfData)
             cache[url] = {
                 expiryTime: expiryTime,
                 firstHalfData: ageSplit[0] + 'Age: ',
-                secondHalfData: '\r\n' + secondHalfData[1],
+                secondHalfData: '\r\n' + secondHalfData,
                 startTime: startTime
             }
-            console.log(cache[url])
+            // console.log(cache[url])
         } else {
             console.log(`Could not cache response from: ${url}, due to header parameters`)
         }
-    } else {
+    }else{
         console.log(`Could not cache response from: ${url}, due to header parameters`)
     }
 }
