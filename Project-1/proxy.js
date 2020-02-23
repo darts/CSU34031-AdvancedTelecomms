@@ -57,17 +57,17 @@ server.on('connection', (clientProxyConn) => {
 
                 //if is HTTPS, confirm connection
                 //else send the request to the server
-                if (reqData.isHTTPS){
+                if (reqData.isHTTPS) {
                     clientProxyConn.write('HTTP/1.1 200 OK\r\n\n')
                     //Don't manually handle subsequent data streams, this is easier, faster and uses less memory
                     //readableSrc.pipe(writableDest)
                     clientProxyConn.pipe(toServerConn).pipe(clientProxyConn)
-                }else{
+                } else {
                     console.log(reqData)
                     let cachedRes = getFromCache(reqData.rawURL)
-                    if(!cachedRes){
+                    if (!cachedRes) {
                         toServerConn.write(data)
-                        toServerConn.on('data', (resData) =>{
+                        toServerConn.on('data', (resData) => {
                             clientProxyConn.write(resData)
                             addToCache(resData, reqData.rawURL)
                         })
@@ -207,10 +207,20 @@ let writeBlockList = (blockList) => {
  * @param {string} url The requested URL  
  * @return {{cacheObj}}
  */
-let getFromCache = (url) =>{
-    if(cache[url]){
-
-        return cache[url]
+let getFromCache = (url) => {
+    if (cache[url]) {
+        let tmpCache = cache[url]
+        if (tmpCache.expiryTime > (Date.now() / 1000)) {
+            console.log(`Cached data for ${url}, found`)
+            let cachedStr = tmpCache.firstHalfData + (tmpCache.startTime + (Date.now() / 1000)) + tmpCache.secondHalfData
+            console.log(cachedStr)
+            return false
+            cachedStr = Buffer.from(cachedStr, 'utf-8')
+            return cachedStr
+        } else {
+            console.log(`Cached data for ${url}, expired... purging`)
+            return false
+        }
     }
     return false
 }
@@ -219,24 +229,29 @@ let getFromCache = (url) =>{
 /**
  * @param {Buffer} responseBuffer The raw data response from the server
  */
-let addToCache = (responseBuffer, url) =>{
+let addToCache = (responseBuffer, url) => {
     let parsedBuffer = responseBuffer.toString()
-    let expiryTime = parsedBuffer.split('Cache-Control: max-age=')[1].split('\r\n')[0]
-    if(expiryTime){
-        expiryTime = parseInt(expiryTime) + (Date.now()/1000)
-        let ageSplit = parsedBuffer.split('Age: ')
-        let secondHalfData = ageSplit[1].split('\r\n')
-        let age = secondHalfData[0]
-        if(age){
-            expiryTime -= parseInt(age)
+    if (parsedBuffer.includes('Cache-Control: max-age=')) {
+        let expiryTime = parsedBuffer.split('Cache-Control: max-age=')[1].split('\r\n')[0]
+        if (expiryTime) {
+            expiryTime = parseInt(expiryTime) + Math.floor((Date.now() / 1000))
+            let ageSplit = parsedBuffer.split('Age: ')
+            let secondHalfData = ageSplit[1].split('\r\n')
+
+            expiryTime -= parseInt(secondHalfData[0])
+            let startTime = parseInt(secondHalfData[0] + Math.floor((Date.now() / 1000)))
+            // console.log(parsedBuffer)
+            cache[url] = {
+                expiryTime: expiryTime,
+                firstHalfData: ageSplit[0] + 'Age: ',
+                secondHalfData: '\r\n' + secondHalfData[1],
+                startTime: startTime
+            }
+            console.log(cache[url])
+        } else {
+            console.log(`Could not cache response from: ${url}, due to header parameters`)
         }
-    console.log(parsedBuffer)
-        cache[url] = {
-            expiryTime: expiryTime,
-            firstHalfData: ageSplit[1] + 'Age: ',
-            secondHalfData: '\r\n' + secondHalfData[1]
-        }
-    }else{
+    } else {
         console.log(`Could not cache response from: ${url}, due to header parameters`)
     }
 }
