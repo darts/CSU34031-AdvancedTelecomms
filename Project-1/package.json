@@ -4,6 +4,7 @@
   "description": "A web proxy server built in NodeJS",
   "main": "index.js",
   "scripts": {
+    "start": "node proxy.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "repository": {
@@ -17,7 +18,6 @@
   },
   "homepage": "https://github.com/darts/CSU34031-AdvancedTelecomms#readme",
   "dependencies": {
-    "axios": "^0.19.2",
     "net": "^1.0.2"
   }
 }

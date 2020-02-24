@@ -2,6 +2,7 @@ process.env.UV_THREADPOOL_SIZE = 1000
 const net = require('net')
 const fs = require('fs')
 const path = require('path')
+const { exec } = require('child_process')
 const server = net.createServer()
 const port = 4000
 const stdin = process.openStdin()
@@ -30,7 +31,14 @@ server.on('close', () => {
 //Something broke
 server.on('error', (err) => {
     console.error({ ERROR: err })
-    // throw err
+    exec('npm start', (err, stdout, stderr) => {
+        if (err) {
+            console.error(err)
+        } else {
+            console.log(`stdOUT: ${stdout}`)
+            console.log(`stdERR: ${stderr}`)
+        }
+    })
 })
 
 //TODO make this multithreaded, maybe workers with credentials?
@@ -64,7 +72,7 @@ server.on('connection', (clientProxyConn) => {
                     //readableSrc.pipe(writableDest)
                     clientProxyConn.pipe(toServerConn).pipe(clientProxyConn)
                 } else {
-                    if (isWebsocketRequest(data)) {//don't cache websockets
+                    if (isWebsocketRequest(data)) {//don't cache websockets, or headers that request 'no-cache'
                         clientProxyConn.pipe(toServerConn).pipe(clientProxyConn)
                     } else { //need to manually handle chunked data
                         // console.log(reqData)
@@ -77,21 +85,24 @@ server.on('connection', (clientProxyConn) => {
                             // let dataWhole = Buffer.from('','binary')
                             let dataWhole = []
                             let isChunked = false
-                            clientProxyConn.on('data', newData =>{
-                                console.log({fromClientData:newData.toString()})
-                            })
+                            // console.log({oldFromClientData:theData})
+                            // clientProxyConn.on('data', newData =>{
+                            //     console.log({fromClientData:newData.toString()})
+                            // })
                             toServerConn.on('data', (resData) => {
                                 if (isChunked || resData.toString().includes('Transfer-Encoding: chunked\r\n')) {
                                     console.log('Chunky boi incoming')
-                                    // console.log({data:resData.toString().slice(-5)})
+                                    console.log({ data: resData.toString() })
+
                                     clientProxyConn.write(resData)
+
                                     dataWhole.push(resData)
                                     // dataWhole = Buffer.concat([resData, dataWhole])
                                     if (!isChunked)
                                         isChunked = true
 
                                     if (resData.toString().slice(-5) == '0\r\n\r\n') {
-                                        addToCache(dataWhole[0], reqData.rawURL, dataWhole.splice(0,1))
+                                        addToCache(dataWhole[0], reqData.rawURL, dataWhole.splice(0, 1))
                                     }
                                 } else {
                                     clientProxyConn.write(resData)
@@ -102,12 +113,12 @@ server.on('connection', (clientProxyConn) => {
                                 }
                             })
                         } else {
-                            if(cachedRes.chunkArr){
+                            if (cachedRes.chunkArr) {
                                 clientProxyConn.write(cachedRes.cachedStr)
-                                cachedRes.chunkArr.forEach(e =>{
+                                cachedRes.chunkArr.forEach(e => {
                                     clientProxyConn.write(e)
                                 })
-                            }else{
+                            } else {
                                 clientProxyConn.write(cachedRes)
                             }
                             if (timing)
@@ -273,9 +284,9 @@ let getFromCache = (url) => {
             let cachedStr = tmpCache.firstHalfData + (Math.floor(Date.now() / 1000) - tmpCache.startTime) + tmpCache.secondHalfData
             cachedStr = Buffer.from(cachedStr, 'binary')
             // console.log(cachedStr)
-            if(!tmpCache.chunkArr)
+            if (!tmpCache.chunkArr)
                 return cachedStr
-            return {cachedStr:cachedStr, chunkArr:tmpCache.chunkArr}
+            return { cachedStr: cachedStr, chunkArr: tmpCache.chunkArr }
         } else {
             console.log(`Cached data for ${url}, expired... purging`)
             return false
@@ -337,11 +348,14 @@ let addToCache = (responseBuffer, url, chunkArr = false) => {
 /**
  * Determines if a HTTP request is for a websocket
  * @param {Buffer} rawData The raw request data
+ * @param {Boolean} allowNoCache Respond true to no cache requests
  * @return {Boolean} If it is a websocket request
  */
-let isWebsocketRequest = (rawData) => {
+let isWebsocketRequest = (rawData, allowNoCache = false) => {
     let stringifiedData = rawData.toString()
     if (stringifiedData.includes('Upgrade: WebSocket\r\n') || stringifiedData.includes('Connection: Upgrade\r\n'))
+        return true
+    if (!allowNoCache && (stringifiedData.includes('Cache-Control: no-cache\r\n') || stringifiedData.includes('Pragma: no-cache\r\n') || !stringifiedData.includes('Cache-Control: max-age=')))
         return true
     return false
 }
