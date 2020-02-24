@@ -1,0 +1,620 @@
+<!DOCTYPE html>
+    <html>
+    <head>
+        <meta charset="UTF-8">
+        <title>CSU34031 Advanced Telecommunications</title>
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.10.2/dist/katex.min.css" integrity="sha384-yFRtMMDnQtDRO8rLpMIKrtPCD5jdktao2TV19YiZYWMDkUR5GQZR/NOVTdquEx1j" crossorigin="anonymous">
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/Microsoft/vscode/extensions/markdown-language-features/media/markdown.css">
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/Microsoft/vscode/extensions/markdown-language-features/media/highlight.css">
+        <link href="https://cdn.jsdelivr.net/npm/katex-copytex@latest/dist/katex-copytex.min.css" rel="stylesheet" type="text/css">
+        <style>
+.task-list-item { list-style-type: none; } .task-list-item-checkbox { margin-left: -20px; vertical-align: middle; }
+</style>
+        <style>
+            body {
+                font-family: -apple-system, BlinkMacSystemFont, 'Segoe WPC', 'Segoe UI', 'Ubuntu', 'Droid Sans', sans-serif;
+                font-size: 14px;
+                line-height: 1.6;
+            }
+        </style>
+        
+        <script src="https://cdn.jsdelivr.net/npm/katex-copytex@latest/dist/katex-copytex.min.js"></script>
+    </head>
+    <body class="vscode-light">
+        <h1 id="csu34031-advanced-telecommunications">CSU34031 Advanced Telecommunications</h1>
+<h2 id="project-1---sen%c3%a1n-dart---17329580">Project-1 - Senán d'Art - 17329580</h2>
+<h3 id="introduction">Introduction</h3>
+<p>This project is to:</p>
+<ul>
+<li>Develop a web proxy that can handle HTTP, HTTPS and Websocket connections.</li>
+<li>Support caching of HTTP packets</li>
+<li>Support the dynamic blocking of URLs through a management console</li>
+<li>Support multithreaded operation</li>
+</ul>
+<p>I chose to use NodeJS and JavaScript to accomplish these goals.</p>
+<h3 id="high-level-overview">High-Level Overview</h3>
+<p>For every connection to the proxy server (multiple occurences possible for each user):</p>
+<ul>
+<li>If the requested <strong>URL is not blacklisted</strong>:
+<ul>
+<li>If the connection <strong>uses TLS or is a Websocket</strong>:
+<ul>
+<li>Pipe all packets from server to client</li>
+<li>Pipe all packets from client to server</li>
+<li>Notes:
+<ul>
+<li>There is no reason to parse this data further</li>
+</ul>
+</li>
+</ul>
+</li>
+<li>Else the connection <strong>does not use TLS and is not a websocket</strong>:
+<ul>
+<li>If the <strong>packet is cached already</strong>:
+<ul>
+<li>If the <strong>cached item is not expired</strong>:
+<ul>
+<li>Update the age of the packet and send it as response to the client</li>
+</ul>
+</li>
+<li>Else the <strong>cached item is expired</strong>:
+<ul>
+<li>Remove from cache and continue as if it was never cached</li>
+</ul>
+</li>
+</ul>
+</li>
+<li>Else <strong>packet is not cached</strong>:
+<ul>
+<li>Send request to server</li>
+<li>On server response:
+<ul>
+<li>If the <strong>response packet is cache-able</strong> (based on header params):
+<ul>
+<li>If <strong>response is chunked</strong>:
+<ul>
+<li>Send each chunk to the user as it arrives</li>
+<li>Temporarily store each chunk</li>
+<li>When transmission is complete -&gt; add all chunked data to cache</li>
+</ul>
+</li>
+<li>Else <strong>response is not chunked</strong>
+<ul>
+<li>Send response packet to client</li>
+<li>Add packet to cache</li>
+</ul>
+</li>
+</ul>
+</li>
+<li>Else the <strong>response packet is not cache-able</strong>:
+<ul>
+<li>Pipe the response to the user</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li>Else the requested <strong>URL is blacklisted</strong>:
+<ul>
+<li>Send a <code>403 FORBIDDEN</code> response to the client</li>
+<li>Close the connection</li>
+</ul>
+</li>
+</ul>
+<h3 id="installation">Installation</h3>
+<p>Requires:</p>
+<ul>
+<li>NodeJS 12.13.1+</li>
+<li>npm (if for some reason it wasn't bundled with Node)</li>
+</ul>
+<p>Set up:</p>
+<ol>
+<li>Open a terminal in the directory containing <code>proxy.js</code> and <code>package.json</code></li>
+<li>Run <code>npm install</code> (may require sudo)</li>
+<li>Run <code>npm start</code></li>
+</ol>
+<h3 id="usage">Usage</h3>
+<p>Commands:</p>
+<ul>
+<li><code>block &lt;domain&gt;</code> - adds specified domain to blocklist</li>
+<li><code>unblock &lt;domain&gt;</code> - removes domain from blocklist</li>
+<li><code>cache</code> - enables caching</li>
+<li><code>nocache</code> - disables caching</li>
+<li><code>verbose</code> - prints all connections to console</li>
+<li><code>noverbose</code> - disables printing of all connections to console</li>
+<li><code>timing</code> - print timing data of cache hits/misses</li>
+<li><code>notiming</code> - disables printing of cache hit/miss timing data</li>
+<li><code>showsaving</code> - shows how many bytes have been served from cache</li>
+<li><code>showcachesize</code> - shows the current cache size</li>
+</ul>
+<h3 id="testing">Testing</h3>
+<p>In order to test the performance of the proxy and the effect caching has on responsiveness, I loaded some websites with and without caching.<br>
+All tests were conducted with Firefox 73.0.1 and repeated 3 times with a restart of the proxy used between each to clear the cache. The <code>noverbose</code> flag was enabled for all tests to reduce clutter.<br>
+I ran the same test on the following sites:</p>
+<ul>
+<li><a href="http://www.example.com">www.example.com</a>
+<ul>
+<li>No-Cache
+<ul>
+<li>Webpage
+<ul>
+<li><code>99ms</code>, <code>100ms</code>, <code>99ms</code></li>
+<li>Average: ~<code>100ms</code></li>
+</ul>
+</li>
+<li>Favicon
+<ul>
+<li><code>532ms</code>, <code>550ms</code>, <code>565ms</code></li>
+<li>Average: ~<code>545ms</code></li>
+</ul>
+</li>
+</ul>
+</li>
+<li>Cache
+<ul>
+<li>Webpage
+<ul>
+<li><code>0ms</code>, <code>1ms</code>, <code>1ms</code></li>
+<li>Average: ~<code>0.5ms</code></li>
+</ul>
+</li>
+<li>Favicon
+<ul>
+<li><code>550ms</code>, <code>541ms</code>, <code>511ms</code></li>
+<li>Average: ~<code>540ms</code></li>
+<li>This one had a header requesting not to be cached</li>
+</ul>
+</li>
+<li>Bandwith saved: <code>3,162 Bytes</code></li>
+</ul>
+</li>
+</ul>
+</li>
+<li><a href="http://www.writephponline.com">www.writephponline.com</a>
+<ul>
+<li>Notes:
+<ul>
+<li>There are lots of requests for various assets on this page so the following are averages</li>
+<li>Most of the requests under the hood are actually HTTPS or not cache-able</li>
+</ul>
+</li>
+<li>No-Cache
+<ul>
+<li><code>1880ms</code>, <code>2200ms</code>, <code>2280ms</code></li>
+<li>Average: <code>~2100ms</code></li>
+</ul>
+</li>
+<li>Cache
+<ul>
+<li><code>1520ms</code>, <code>1280ms</code>, <code>1400ms</code></li>
+<li>Average: <code>~1400ms</code></li>
+</ul>
+</li>
+<li>Bandwitdh saved: <code>3,818 Bytes</code></li>
+</ul>
+</li>
+</ul>
+<h3 id="code">Code</h3>
+<pre><code class="language-javascript"><div>process.env.UV_THREADPOOL_SIZE = <span class="hljs-number">1000</span>
+<span class="hljs-keyword">const</span> net = <span class="hljs-built_in">require</span>(<span class="hljs-string">'net'</span>)
+<span class="hljs-keyword">const</span> fs = <span class="hljs-built_in">require</span>(<span class="hljs-string">'fs'</span>)
+<span class="hljs-keyword">const</span> path = <span class="hljs-built_in">require</span>(<span class="hljs-string">'path'</span>)
+<span class="hljs-keyword">const</span> { exec } = <span class="hljs-built_in">require</span>(<span class="hljs-string">'child_process'</span>)
+<span class="hljs-keyword">const</span> server = net.createServer()
+<span class="hljs-keyword">const</span> port = <span class="hljs-number">4000</span>
+<span class="hljs-keyword">const</span> stdin = process.openStdin()
+<span class="hljs-keyword">const</span> blockListName = <span class="hljs-string">'blockList.json'</span>
+<span class="hljs-keyword">const</span> blockListPath = path.join(__dirname, blockListName)
+<span class="hljs-keyword">let</span> verbose = <span class="hljs-literal">true</span>
+<span class="hljs-keyword">let</span> caching = <span class="hljs-literal">true</span>
+<span class="hljs-keyword">let</span> timing = <span class="hljs-literal">true</span>
+<span class="hljs-keyword">let</span> currentCacheSize = <span class="hljs-number">0</span>
+<span class="hljs-keyword">let</span> bytesSavedFromNetwork = <span class="hljs-number">0</span> <span class="hljs-comment">//how much bandwidth has been saved</span>
+<span class="hljs-keyword">let</span> suppressErrs = <span class="hljs-literal">true</span>
+
+<span class="hljs-comment">/**
+ * Read and return blocklist  
+ * @return {{blockedURLs:Array}}
+ */</span>
+<span class="hljs-keyword">let</span> readBlockList = <span class="hljs-function"><span class="hljs-params">()</span> =&gt;</span> {
+    <span class="hljs-keyword">return</span> <span class="hljs-built_in">JSON</span>.parse(fs.readFileSync(blockListPath, <span class="hljs-string">'utf8'</span>))
+}
+<span class="hljs-keyword">let</span> blockList = readBlockList()
+
+<span class="hljs-keyword">let</span> cache = []
+
+<span class="hljs-comment">//No clients connected </span>
+server.on(<span class="hljs-string">'close'</span>, () =&gt; {
+    <span class="hljs-built_in">console</span>.log(<span class="hljs-string">`All clients disconnected`</span>)
+})
+
+<span class="hljs-comment">//Something broke</span>
+server.on(<span class="hljs-string">'error'</span>, (err) =&gt; {
+    <span class="hljs-built_in">console</span>.error({ <span class="hljs-attr">ERROR</span>: err })
+    exec(<span class="hljs-string">'npm start'</span>, (err, stdout, stderr) =&gt; {
+        <span class="hljs-keyword">if</span> (err) {
+            <span class="hljs-built_in">console</span>.error(err)
+        } <span class="hljs-keyword">else</span> {
+            <span class="hljs-built_in">console</span>.log(<span class="hljs-string">`stdOUT: <span class="hljs-subst">${stdout}</span>`</span>)
+            <span class="hljs-built_in">console</span>.log(<span class="hljs-string">`stdERR: <span class="hljs-subst">${stderr}</span>`</span>)
+        }
+    })
+})
+
+<span class="hljs-comment">//new connection to server</span>
+server.on(<span class="hljs-string">'connection'</span>, (clientProxyConn) =&gt; {
+    <span class="hljs-comment">//create the connection</span>
+
+    clientProxyConn.once(<span class="hljs-string">'data'</span>, (data) =&gt; {
+        <span class="hljs-keyword">let</span> theData = data.toString()
+        <span class="hljs-keyword">let</span> reqData = getAddrAndPort(theData)
+        <span class="hljs-comment">//if it's blacklisted, send 403 and kill connection</span>
+        <span class="hljs-keyword">if</span> (blockList.blockedURLs.includes(reqData.host)) {
+            clientProxyConn.write(<span class="hljs-string">'HTTP/1.1 403 FORBIDDEN\r\n\r\n'</span>)
+            clientProxyConn.end()
+            clientProxyConn.destroy()
+            <span class="hljs-keyword">if</span> (verbose)
+                <span class="hljs-built_in">console</span>.log({
+                    <span class="hljs-attr">Message</span>: <span class="hljs-string">'Connection Blocked'</span>,
+                    <span class="hljs-attr">Hostname</span>: reqData.host,
+                    <span class="hljs-attr">Port</span>: reqData.port,
+                    <span class="hljs-attr">HTTPS</span>: reqData.isHTTPS
+                })
+            <span class="hljs-keyword">return</span>
+        }
+
+        <span class="hljs-keyword">let</span> toServerConn = net.createConnection({
+            <span class="hljs-attr">host</span>: reqData.host,
+            <span class="hljs-attr">port</span>: reqData.port
+        }, () =&gt; {
+            <span class="hljs-comment">//if is HTTPS, confirm connection</span>
+            <span class="hljs-comment">//else send the request to the server</span>
+            <span class="hljs-keyword">if</span> (reqData.isHTTPS || !caching) {
+                <span class="hljs-keyword">if</span> (reqData.isHTTPS)
+                    clientProxyConn.write(<span class="hljs-string">'HTTP/1.1 200 OK\r\n\n'</span>)
+                <span class="hljs-comment">//Don't manually handle subsequent data streams, this is easier, faster and uses less memory</span>
+                <span class="hljs-comment">//readableSrc.pipe(writableDest)</span>
+                clientProxyConn.pipe(toServerConn).pipe(clientProxyConn)
+            } <span class="hljs-keyword">else</span> {
+                <span class="hljs-keyword">if</span> (isWebsocketRequest(data)) {<span class="hljs-comment">//don't cache websockets, or headers that request 'no-cache'</span>
+                    <span class="hljs-built_in">console</span>.log(<span class="hljs-string">`Not caching websocket request for: <span class="hljs-subst">${reqData.rawURL}</span>`</span>)
+                    clientProxyConn.pipe(toServerConn).pipe(clientProxyConn)
+                } <span class="hljs-keyword">else</span> { <span class="hljs-comment">//need to manually handle chunked data</span>
+                    <span class="hljs-keyword">let</span> cachedRes = getFromCache(reqData.rawURL)
+                    <span class="hljs-keyword">let</span> startTime = <span class="hljs-built_in">Date</span>.now()
+                    <span class="hljs-keyword">if</span> (!cachedRes) { <span class="hljs-comment">//response not already cached </span>
+                        toServerConn.write(data)
+                        <span class="hljs-keyword">let</span> dataWhole = []
+                        <span class="hljs-keyword">let</span> isChunked = <span class="hljs-literal">false</span>
+                        <span class="hljs-keyword">let</span> cacheableResponse = <span class="hljs-literal">false</span>
+                        <span class="hljs-keyword">let</span> checkedCachability = <span class="hljs-literal">false</span>
+                        toServerConn.on(<span class="hljs-string">'data'</span>, (resData) =&gt; {
+                            <span class="hljs-keyword">if</span> (!checkedCachability) { <span class="hljs-comment">//need to check if we can cache it</span>
+                                cacheableResponse = isCacheableResponse(resData)
+                                checkedCachability = <span class="hljs-literal">true</span>
+                            }
+
+                            <span class="hljs-keyword">if</span> (!cacheableResponse) { <span class="hljs-comment">//not cacheable</span>
+                                <span class="hljs-built_in">console</span>.log(<span class="hljs-string">`Packet from '<span class="hljs-subst">${reqData.rawURL}</span>', does not allow caching`</span>)
+                                clientProxyConn.write(resData)
+                                clientProxyConn.pipe(toServerConn).pipe(clientProxyConn)
+                            } <span class="hljs-keyword">else</span> {
+                                <span class="hljs-keyword">if</span> (isChunked || resData.toString().includes(<span class="hljs-string">'Transfer-Encoding: chunked\r\n'</span>)) { <span class="hljs-comment">//for chunked data need to cache differently</span>
+                                    <span class="hljs-built_in">console</span>.log(<span class="hljs-string">'Chunked data incoming!'</span>)
+                                    clientProxyConn.write(resData)
+
+                                    dataWhole.push(resData)
+                                    <span class="hljs-keyword">if</span> (!isChunked)
+                                        isChunked = <span class="hljs-literal">true</span>
+
+                                    <span class="hljs-keyword">if</span> (resData.toString().slice(<span class="hljs-number">-5</span>) == <span class="hljs-string">'0\r\n\r\n'</span>) { <span class="hljs-comment">//end of chunked encoding</span>
+                                        addToCache(dataWhole[<span class="hljs-number">0</span>], reqData.rawURL, dataWhole.splice(<span class="hljs-number">0</span>, <span class="hljs-number">1</span>))
+                                    }
+                                } <span class="hljs-keyword">else</span> {
+                                    <span class="hljs-comment">// console.log('multiple requests in same connection, oh no!')</span>
+                                    <span class="hljs-keyword">let</span> rawURL_arr = [reqData.rawURL]
+                                    <span class="hljs-keyword">let</span> startTimeArr = [startTime]
+                                    clientProxyConn.on(<span class="hljs-string">'data'</span>, (data) =&gt; {
+                                        <span class="hljs-keyword">let</span> tmpDetails = getAddrAndPort(data.toString(<span class="hljs-string">'binary'</span>))
+                                        rawURL_arr.push(tmpDetails.rawURL)
+                                        startTimeArr.push(<span class="hljs-built_in">Date</span>.now() / <span class="hljs-number">1000</span>)
+                                        toServerConn.write(data)
+                                    })
+                                    <span class="hljs-comment">// console.log(resData.toString())</span>
+                                    clientProxyConn.write(resData)
+                                    <span class="hljs-keyword">let</span> tmpRawURL = rawURL_arr.shift()
+                                    <span class="hljs-keyword">if</span> (timing) {
+                                        <span class="hljs-comment">// console.log({ url: reqData.rawURL, cached: false, time: `${(Date.now() - startTime).toString()}ms` })</span>
+                                        <span class="hljs-built_in">console</span>.log({ <span class="hljs-attr">url</span>: tmpRawURL, <span class="hljs-attr">cached</span>: <span class="hljs-literal">false</span>, <span class="hljs-attr">time</span>: <span class="hljs-string">`<span class="hljs-subst">${(<span class="hljs-built_in">Date</span>.now() - startTimeArr[<span class="hljs-number">0</span>]).toString()}</span>ms`</span> })
+                                        startTimeArr.shift()
+                                    }
+                                    addToCache(resData, tmpRawURL)
+
+                                    <span class="hljs-comment">// clientProxyConn.pipe(toServerConn).pipe(clientProxyConn)</span>
+
+                                }
+                            }
+                        })
+                    } <span class="hljs-keyword">else</span> {
+                        <span class="hljs-keyword">if</span> (cachedRes.chunkArr) { <span class="hljs-comment">//data was chunked, send each TCP packet</span>
+                            clientProxyConn.write(cachedRes.cachedStr)
+                            cachedRes.chunkArr.forEach(<span class="hljs-function"><span class="hljs-params">e</span> =&gt;</span> {
+                                clientProxyConn.write(e)
+                            })
+                        } <span class="hljs-keyword">else</span> {
+                            <span class="hljs-comment">// console.log(cachedRes.toString())</span>
+                            clientProxyConn.write(cachedRes)
+                        }
+                        <span class="hljs-keyword">if</span> (timing)
+                            <span class="hljs-built_in">console</span>.log({ <span class="hljs-attr">url</span>: reqData.rawURL, <span class="hljs-attr">cached</span>: <span class="hljs-literal">true</span>, <span class="hljs-attr">time</span>: <span class="hljs-string">`<span class="hljs-subst">${(<span class="hljs-built_in">Date</span>.now() - startTime).toString()}</span>ms`</span> })
+                    }
+                }
+            }
+
+            <span class="hljs-keyword">if</span> (verbose)
+                <span class="hljs-built_in">console</span>.log({
+                    <span class="hljs-attr">Message</span>: <span class="hljs-string">'Connection Established'</span>,
+                    <span class="hljs-attr">Hostname</span>: (reqData.isHTTPS ? reqData.host : reqData.rawURL),
+                    <span class="hljs-attr">Port</span>: reqData.port,
+                    <span class="hljs-attr">HTTPS</span>: reqData.isHTTPS
+                })
+            toServerConn.on(<span class="hljs-string">'error'</span>, (err) =&gt; {
+                <span class="hljs-keyword">if</span> (!suppressErrs)
+                    <span class="hljs-built_in">console</span>.error({ <span class="hljs-string">'Server Error'</span>: err })
+            })
+            toServerConn.on(<span class="hljs-string">'close'</span>, () =&gt; {
+                <span class="hljs-built_in">console</span>.warn({ <span class="hljs-string">'Server Closed Conn'</span>: <span class="hljs-string">`<span class="hljs-subst">${reqData.host}</span>:<span class="hljs-subst">${reqData.port}</span>`</span> })
+            })
+        })
+        clientProxyConn.on(<span class="hljs-string">'error'</span>, (err) =&gt; {
+            <span class="hljs-keyword">if</span> (!suppressErrs)
+                <span class="hljs-built_in">console</span>.error({ <span class="hljs-string">'Client Error'</span>: err })
+        })
+        clientProxyConn.on(<span class="hljs-string">'close'</span>, () =&gt; {
+            <span class="hljs-built_in">console</span>.warn({ <span class="hljs-string">'Client Closed Conn'</span>: <span class="hljs-string">`<span class="hljs-subst">${reqData.host}</span>:<span class="hljs-subst">${reqData.port}</span>`</span> })
+        })
+    })
+})
+
+<span class="hljs-comment">/**
+ * Parses out: hostname, port and if a connection is HTTPS
+ * @param {string} data data object stringified
+ * @returns {{host:string, port:string, isHTTPS:boolean, rawURL:string}} hostname, port, whether
+ *  the connection is using HTTPS and the full path trying to be accessed (if HTTP)
+ */</span>
+<span class="hljs-keyword">let</span> getAddrAndPort = <span class="hljs-function">(<span class="hljs-params">data</span>) =&gt;</span> {
+    <span class="hljs-keyword">let</span> hostData = []
+    <span class="hljs-comment">/*
+     * Cannot actually read the data if using TLS but
+     * HTTPS connections contain the keyword 'CONNECT'
+     */</span>
+    hostData[<span class="hljs-string">'isHTTPS'</span>] = data.indexOf(<span class="hljs-string">'CONNECT'</span>) !== <span class="hljs-number">-1</span>
+    <span class="hljs-keyword">if</span> (hostData.isHTTPS) {
+        <span class="hljs-keyword">let</span> splitStr = data.split(<span class="hljs-string">` `</span>)[<span class="hljs-number">1</span>].split(<span class="hljs-string">`:`</span>)
+        hostData[<span class="hljs-string">'host'</span>] = splitStr[<span class="hljs-number">0</span>]
+        hostData[<span class="hljs-string">'port'</span>] = splitStr[<span class="hljs-number">1</span>]
+    } <span class="hljs-keyword">else</span> {
+        <span class="hljs-comment">// console.log(data)</span>
+        hostData[<span class="hljs-string">'rawURL'</span>] = data.split(<span class="hljs-string">'http://'</span>)[<span class="hljs-number">1</span>].split(<span class="hljs-string">' '</span>)[<span class="hljs-number">0</span>]
+        <span class="hljs-keyword">let</span> splitStr = data.split(<span class="hljs-string">`Host: `</span>)[<span class="hljs-number">1</span>].split(<span class="hljs-string">`\r\n`</span>)[<span class="hljs-number">0</span>].split(<span class="hljs-string">`:`</span>)
+        hostData[<span class="hljs-string">'host'</span>] = splitStr[<span class="hljs-number">0</span>]
+        <span class="hljs-comment">//HTTP defaults to port 80 but just in case...</span>
+        hostData[<span class="hljs-string">'port'</span>] = splitStr[<span class="hljs-number">1</span>] ? splitStr[<span class="hljs-number">1</span>] : <span class="hljs-string">'80'</span>
+    }
+    <span class="hljs-keyword">return</span> hostData
+}
+
+server.listen(port, () =&gt; {
+    <span class="hljs-built_in">console</span>.log(<span class="hljs-string">`Server running on: <span class="hljs-subst">${server.address().address !== <span class="hljs-string">'::'</span> ? server.address().address : <span class="hljs-string">'localhost'</span>}</span>:<span class="hljs-subst">${server.address().port}</span>`</span>)
+})
+
+stdin.addListener(<span class="hljs-string">'data'</span>, (data) =&gt; {
+    handleInput(data.toString().trim())
+})
+
+
+<span class="hljs-comment">/**
+ * Handles the strings input by the user
+ * 
+ * @param {String} consoleInput The console input stringified and trimmed  
+ * 
+ * Commands:   
+ * block &lt;domain&gt; - adds domain to blocklist  
+ * unblock &lt;domain&gt; - removes domain from blocklist  
+ * cache - enables caching  
+ * nocache - disables caching  
+ * verbose - prints all connections to console  
+ * noverbose - disables printing of all connections to console  
+ * timing - print timing data of cache hits/misses  
+ * notiming - disables printing of cache hit/miss timing data  
+ * showsaving - shows how many bytes have been served from cache 
+ * showcachesize - shows how big the current cache is 
+ */</span>
+<span class="hljs-keyword">let</span> handleInput = <span class="hljs-function">(<span class="hljs-params">consoleInput</span>) =&gt;</span> {
+    <span class="hljs-keyword">let</span> splitData = consoleInput.split(<span class="hljs-string">' '</span>)
+    <span class="hljs-keyword">let</span> keyword = splitData[<span class="hljs-number">0</span>]
+    <span class="hljs-keyword">let</span> param = splitData[<span class="hljs-number">1</span>]
+    <span class="hljs-keyword">switch</span> (keyword) {
+        <span class="hljs-keyword">case</span> <span class="hljs-string">'block'</span>:
+            <span class="hljs-keyword">if</span> (!blockList.blockedURLs.includes(param)) {
+                blockList.blockedURLs.push(param)
+                writeBlockList(blockList)
+            } <span class="hljs-keyword">else</span> {
+                <span class="hljs-built_in">console</span>.warn(<span class="hljs-string">`<span class="hljs-subst">${param}</span>, has already been blocked!`</span>)
+            }
+            <span class="hljs-keyword">break</span>
+        <span class="hljs-keyword">case</span> <span class="hljs-string">'unblock'</span>:
+            <span class="hljs-keyword">if</span> (blockList.blockedURLs.includes(param)) {
+                blockList.blockedURLs.splice(blockList.blockedURLs.indexOf(param), <span class="hljs-number">1</span>)
+                writeBlockList(blockList)
+            } <span class="hljs-keyword">else</span> {
+                <span class="hljs-built_in">console</span>.warn(<span class="hljs-string">`<span class="hljs-subst">${param}</span>, was not blacklisted!`</span>)
+            }
+            <span class="hljs-keyword">break</span>
+        <span class="hljs-keyword">case</span> <span class="hljs-string">'verbose'</span>:
+            verbose = <span class="hljs-literal">true</span>
+            <span class="hljs-keyword">break</span>
+        <span class="hljs-keyword">case</span> <span class="hljs-string">'noverbose'</span>:
+            verbose = <span class="hljs-literal">false</span>
+            <span class="hljs-keyword">break</span>
+        <span class="hljs-keyword">case</span> <span class="hljs-string">'cache'</span>:
+            caching = <span class="hljs-literal">true</span>
+            <span class="hljs-keyword">break</span>
+        <span class="hljs-keyword">case</span> <span class="hljs-string">'nocache'</span>:
+            caching = <span class="hljs-literal">false</span>
+            <span class="hljs-keyword">break</span>
+        <span class="hljs-keyword">case</span> <span class="hljs-string">'timing'</span>:
+            timing = <span class="hljs-literal">true</span>
+            <span class="hljs-keyword">break</span>
+        <span class="hljs-keyword">case</span> <span class="hljs-string">'notiming'</span>:
+            timing = <span class="hljs-literal">false</span>
+            <span class="hljs-keyword">break</span>
+        <span class="hljs-keyword">case</span> <span class="hljs-string">'showsaving'</span>:
+            <span class="hljs-built_in">console</span>.log({ <span class="hljs-string">'Saved Bytes'</span>: bytesSavedFromNetwork.toLocaleString() })
+            <span class="hljs-keyword">break</span>
+        <span class="hljs-keyword">case</span> <span class="hljs-string">'showcachesize'</span>:
+            <span class="hljs-built_in">console</span>.log({ <span class="hljs-string">'Cache Size'</span>: currentCacheSize.toLocaleString() })
+            <span class="hljs-keyword">break</span>
+        <span class="hljs-keyword">default</span>:
+            <span class="hljs-built_in">console</span>.error(<span class="hljs-string">`Input not recognised: <span class="hljs-subst">${keyword}</span>, is not a keyword`</span>)
+            <span class="hljs-keyword">break</span>
+    }
+}
+
+<span class="hljs-comment">/**
+ * Write updated blocklist  
+ * @param {blockList}  
+ */</span>
+<span class="hljs-keyword">let</span> writeBlockList = <span class="hljs-function">(<span class="hljs-params">blockList</span>) =&gt;</span> {
+    fs.writeFile(blockListPath, <span class="hljs-built_in">JSON</span>.stringify(blockList), (err) =&gt; {
+        <span class="hljs-keyword">if</span> (err)
+            <span class="hljs-built_in">console</span>.error(<span class="hljs-string">`Could not write updated blocklist to disk!`</span>)
+        <span class="hljs-keyword">else</span>
+            <span class="hljs-built_in">console</span>.log(<span class="hljs-string">`Updated blocklist written to disk`</span>)
+    })
+}
+
+<span class="hljs-comment">/**
+ * @param {string} url The requested URL  
+ * @return {Buffer|{cachedStr:Buffer, chunkArr:Array&lt;Buffer&gt;}}
+ */</span>
+<span class="hljs-keyword">let</span> getFromCache = <span class="hljs-function">(<span class="hljs-params">url</span>) =&gt;</span> {
+    <span class="hljs-keyword">if</span> (!caching)
+        <span class="hljs-keyword">return</span> <span class="hljs-literal">false</span>
+    <span class="hljs-keyword">if</span> (cache[url]) {
+        <span class="hljs-keyword">let</span> tmpCache = cache[url]
+        <span class="hljs-keyword">if</span> (tmpCache.expiryTime &gt; (<span class="hljs-built_in">Date</span>.now() / <span class="hljs-number">1000</span>)) {
+            <span class="hljs-built_in">console</span>.log(<span class="hljs-string">`Cached data for <span class="hljs-subst">${url}</span>, found`</span>)
+            <span class="hljs-keyword">let</span> cachedStr = tmpCache.firstHalfData + (<span class="hljs-built_in">Math</span>.floor(<span class="hljs-built_in">Date</span>.now() / <span class="hljs-number">1000</span>) - tmpCache.startTime) + tmpCache.secondHalfData
+
+            cachedStr = Buffer.from(cachedStr, <span class="hljs-string">'binary'</span>)
+            <span class="hljs-comment">// console.log({ cacheURL: url, cachedStr: cachedStr, str: cachedStr.toString('binary') })</span>
+            bytesSavedFromNetwork += tmpCache.size
+            <span class="hljs-comment">//handle chunked and non-chunked data differently</span>
+            <span class="hljs-keyword">if</span> (!tmpCache.chunkArr)
+                <span class="hljs-keyword">return</span> cachedStr
+            <span class="hljs-keyword">return</span> { <span class="hljs-attr">cachedStr</span>: cachedStr, <span class="hljs-attr">chunkArr</span>: tmpCache.chunkArr }
+        } <span class="hljs-keyword">else</span> { <span class="hljs-comment">//data is old</span>
+            <span class="hljs-built_in">console</span>.log(<span class="hljs-string">`Cached data for <span class="hljs-subst">${url}</span>, expired... purging`</span>)
+            cache = cache.splice(cache.indexOf(<span class="hljs-string">'url'</span>), <span class="hljs-number">1</span>)
+            <span class="hljs-keyword">return</span> <span class="hljs-literal">false</span>
+        }
+    }
+    <span class="hljs-keyword">return</span> <span class="hljs-literal">false</span>
+}
+
+<span class="hljs-comment">/**
+ * @param {Buffer} responseBuffer The raw data response from the server  
+ * @param {string} url The url the request if for  
+ * @param {Array&lt;Buffer&gt;} chunkArr The chunks for a chunked response
+ */</span>
+<span class="hljs-keyword">let</span> addToCache = <span class="hljs-function">(<span class="hljs-params">responseBuffer, url, chunkArr = <span class="hljs-literal">false</span></span>) =&gt;</span> {
+    <span class="hljs-keyword">let</span> parsedBuffer = responseBuffer.toString(<span class="hljs-string">'binary'</span>)
+    <span class="hljs-keyword">let</span> parsedTotal = parsedBuffer.split(<span class="hljs-string">'\r\n\r\n'</span>)
+    <span class="hljs-keyword">let</span> parsedBody = parsedTotal[<span class="hljs-number">1</span>]
+    <span class="hljs-keyword">let</span> parsedBufferHead = parsedTotal[<span class="hljs-number">0</span>] <span class="hljs-comment">//extract the header</span>
+    <span class="hljs-keyword">if</span> (parsedBufferHead.includes(<span class="hljs-string">'404 Not Found\r\n'</span>)) {<span class="hljs-comment">//dont cache 404</span>
+        <span class="hljs-comment">// console.log(`Not caching 404 responses`)</span>
+        <span class="hljs-comment">// return</span>
+    }
+    <span class="hljs-keyword">if</span> (parsedBufferHead.includes(<span class="hljs-string">'Cache-Control: max-age='</span>)) {
+        <span class="hljs-keyword">let</span> expiryTime = parsedBufferHead.split(<span class="hljs-string">'Cache-Control: max-age='</span>)[<span class="hljs-number">1</span>]
+        <span class="hljs-keyword">if</span> (expiryTime &amp;&amp; expiryTime.split(<span class="hljs-string">'\r\n'</span>, <span class="hljs-number">1</span>)[<span class="hljs-number">0</span>]) {
+            <span class="hljs-keyword">let</span> size = responseBuffer.length
+            <span class="hljs-keyword">if</span> (chunkArr)
+                chunkArr.forEach(<span class="hljs-function"><span class="hljs-params">e</span> =&gt;</span> {
+                    size += e.length
+                })
+            expiryTime = expiryTime.split(<span class="hljs-string">'\r\n'</span>, <span class="hljs-number">1</span>)[<span class="hljs-number">0</span>].split(<span class="hljs-string">','</span>)[<span class="hljs-number">0</span>]
+            expiryTime = <span class="hljs-built_in">parseInt</span>(expiryTime) + <span class="hljs-built_in">Math</span>.floor((<span class="hljs-built_in">Date</span>.now() / <span class="hljs-number">1000</span>))
+            <span class="hljs-keyword">if</span> (parsedBufferHead.includes(<span class="hljs-string">'Age: '</span>)) { <span class="hljs-comment">//header includes age, this is ideal</span>
+                <span class="hljs-keyword">var</span> ageSplit = parsedBufferHead.split(<span class="hljs-string">'Age: '</span>)
+
+                <span class="hljs-keyword">var</span> secondHalfData = ageSplit[<span class="hljs-number">1</span>].split(<span class="hljs-string">'\r\n'</span>)
+                expiryTime -= <span class="hljs-built_in">parseInt</span>(secondHalfData[<span class="hljs-number">0</span>])
+                <span class="hljs-keyword">var</span> startTime = <span class="hljs-built_in">Math</span>.floor(<span class="hljs-built_in">Date</span>.now() / <span class="hljs-number">1000</span>) - <span class="hljs-built_in">parseInt</span>(secondHalfData[<span class="hljs-number">0</span>])
+                secondHalfData.splice(<span class="hljs-number">0</span>, <span class="hljs-number">1</span>)
+                secondHalfData = secondHalfData.join(<span class="hljs-string">'\r\n'</span>) + <span class="hljs-string">'\r\n\r\n'</span> + parsedBody.toString(<span class="hljs-string">'binary'</span>)
+            } <span class="hljs-keyword">else</span> { <span class="hljs-comment">//header does not include age, this is not ideal</span>
+                <span class="hljs-keyword">let</span> theHeaderArr = parsedBufferHead.split(<span class="hljs-string">'Cache-Control: max-age='</span>)
+                <span class="hljs-keyword">var</span> startTime = <span class="hljs-number">0</span>
+                theHeaderArr[<span class="hljs-number">0</span>] += <span class="hljs-string">'Cache-Control: max-age='</span>
+                theHeaderArr[<span class="hljs-number">1</span>] = theHeaderArr[<span class="hljs-number">1</span>].split(<span class="hljs-string">'\r\n'</span>)
+                theHeaderArr[<span class="hljs-number">0</span>] += theHeaderArr[<span class="hljs-number">1</span>][<span class="hljs-number">0</span>] + <span class="hljs-string">'\r\n'</span>
+                <span class="hljs-keyword">var</span> ageSplit = []
+                ageSplit[<span class="hljs-number">0</span>] = theHeaderArr[<span class="hljs-number">0</span>]
+                <span class="hljs-keyword">var</span> secondHalfData = parsedBuffer.slice(ageSplit[<span class="hljs-number">0</span>].length)
+                <span class="hljs-comment">// console.log({ secondHalf: secondHalfData })</span>
+            }
+
+            cache[url] = {
+                <span class="hljs-attr">expiryTime</span>: expiryTime,
+                <span class="hljs-attr">firstHalfData</span>: ageSplit[<span class="hljs-number">0</span>] + <span class="hljs-string">'Age: '</span>,
+                <span class="hljs-attr">secondHalfData</span>: <span class="hljs-string">'\r\n'</span> + secondHalfData,
+                <span class="hljs-attr">startTime</span>: startTime,
+                <span class="hljs-attr">chunkArr</span>: chunkArr,
+                <span class="hljs-attr">size</span>: size
+            }
+            currentCacheSize += size
+            <span class="hljs-built_in">console</span>.log({ <span class="hljs-attr">CachedURL</span>: url, <span class="hljs-attr">Size</span>: <span class="hljs-string">`<span class="hljs-subst">${size.toLocaleString()}</span> bytes`</span> })
+        } <span class="hljs-keyword">else</span> {
+            <span class="hljs-comment">// console.log(parsedBufferHead)</span>
+            <span class="hljs-built_in">console</span>.log(<span class="hljs-string">`Could not cache response from: <span class="hljs-subst">${url}</span>, due to header parameters`</span>)
+        }
+    } <span class="hljs-keyword">else</span> {
+        <span class="hljs-comment">// console.log(parsedBufferHead)</span>
+        <span class="hljs-built_in">console</span>.log(<span class="hljs-string">`Could not cache response from: <span class="hljs-subst">${url}</span>, due to header parameters`</span>)
+    }
+}
+
+<span class="hljs-comment">/**
+ * Determines if a HTTP request is for a websocket
+ * @param {Buffer} rawData The raw request data
+ * @param {Boolean} allowNoCache Respond true to no cache requests
+ */</span>
+<span class="hljs-keyword">let</span> isWebsocketRequest = <span class="hljs-function">(<span class="hljs-params">rawData</span>) =&gt;</span> {
+    <span class="hljs-keyword">let</span> stringifiedData = rawData.toString()
+    <span class="hljs-keyword">if</span> (stringifiedData.includes(<span class="hljs-string">'Upgrade: websocket\r\n'</span>) || stringifiedData.includes(<span class="hljs-string">'Connection: upgrade\r\n'</span>))
+        <span class="hljs-keyword">return</span> <span class="hljs-literal">true</span>
+    <span class="hljs-keyword">return</span> <span class="hljs-literal">false</span>
+}
+
+<span class="hljs-comment">/**
+ * Determines if a response wants to be cached
+ * @param {Buffer} rawData
+ */</span>
+<span class="hljs-keyword">let</span> isCacheableResponse = <span class="hljs-function">(<span class="hljs-params">rawData</span>) =&gt;</span> {
+    <span class="hljs-keyword">let</span> stringifiedData = rawData.toString()
+    <span class="hljs-keyword">if</span> (stringifiedData.includes(<span class="hljs-string">'Cache-Control: no-cache\r\n'</span>) || stringifiedData.includes(<span class="hljs-string">'Pragma: no-cache\r\n'</span>) || !stringifiedData.includes(<span class="hljs-string">'Cache-Control: max-age='</span>))
+        <span class="hljs-keyword">return</span> <span class="hljs-literal">false</span>
+    <span class="hljs-keyword">return</span> <span class="hljs-literal">true</span>
+}
+</div></code></pre>
+
+    </body>
+    </html>

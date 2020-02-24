@@ -296,7 +296,8 @@ server.on('connection', (clientProxyConn) => {
 /**
  * Parses out: hostname, port and if a connection is HTTPS
  * @param {string} data data object stringified
- * @returns {{host:string, port:string, isHTTPS:boolean, rawURL:string}} hostname, port, whether the connection is using HTTPS and the full path trying to be accessed (if HTTP)
+ * @returns {{host:string, port:string, isHTTPS:boolean, rawURL:string}} hostname, port, whether
+ *  the connection is using HTTPS and the full path trying to be accessed (if HTTP)
  */
 let getAddrAndPort = (data) => {
     let hostData = []
