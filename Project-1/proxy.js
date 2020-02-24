@@ -1,3 +1,4 @@
+process.env.UV_THREADPOOL_SIZE = 1000
 const net = require('net')
 const fs = require('fs')
 const path = require('path')
