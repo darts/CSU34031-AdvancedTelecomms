@@ -11,10 +11,9 @@ const blockListPath = path.join(__dirname, blockListName)
 let verbose = true
 let caching = true
 let timing = true
-let maxCacheSize = 10000000 //10MB cache
 let currentCacheSize = 0
 let bytesSavedFromNetwork = 0 //how much bandwidth has been saved
-let suppressErrs = false
+let suppressErrs = true
 
 /**
  * Read and return blocklist  
@@ -54,104 +53,9 @@ server.on('connection', (clientProxyConn) => {
         let reqData = getAddrAndPort(theData)
         //if it's blacklisted, send 403 and kill connection
         if (blockList.blockedURLs.includes(reqData.host)) {
-            clientProxyConn.write('HTTP/1.1 403 FORBIDDEN\r\n\n')
+            clientProxyConn.write('HTTP/1.1 403 FORBIDDEN\r\n\r\n')
             clientProxyConn.end()
             clientProxyConn.destroy()
-            var blocked = true
-        }
-
-        if (!blocked) {
-            let toServerConn = net.createConnection({
-                host: reqData.host,
-                port: reqData.port
-            }, () => {
-                //if is HTTPS, confirm connection
-                //else send the request to the server
-                if (reqData.isHTTPS) {
-                    clientProxyConn.write('HTTP/1.1 200 OK\r\n\n')
-                    //Don't manually handle subsequent data streams, this is easier, faster and uses less memory
-                    //readableSrc.pipe(writableDest)
-                    clientProxyConn.pipe(toServerConn).pipe(clientProxyConn)
-                } else {
-                    if (isWebsocketRequest(data)) {//don't cache websockets, or headers that request 'no-cache'
-                        console.log(`Not caching websocket request for: ${reqData.rawURL}`)
-                        clientProxyConn.pipe(toServerConn).pipe(clientProxyConn)
-                    } else { //need to manually handle chunked data
-                        let cachedRes = getFromCache(reqData.rawURL)
-                        let startTime = Date.now()
-                        if (!cachedRes) { //response not already cached 
-                            toServerConn.write(data)
-                            let dataWhole = []
-                            let isChunked = false
-                            let cacheableResponse = false
-                            let checkedCachability = false
-                            toServerConn.on('data', (resData) => {
-                                if (!checkedCachability) { //need to check if we can cache it
-                                    console.log(`Packet from '${reqData.rawURL}', does not allow caching`)
-                                    cacheableResponse = isCacheableResponse(resData)
-                                    checkedCachability = true
-                                }
-                                if (!cacheableResponse) { //not cacheable
-                                    clientProxyConn.write(resData)
-                                    clientProxyConn.pipe(toServerConn).pipe(clientProxyConn)
-                                } else {
-                                    if (isChunked || resData.toString().includes('Transfer-Encoding: chunked\r\n')) { //for chunked data need to cache differently
-                                        clientProxyConn.write(resData)
-
-                                        dataWhole.push(resData)
-                                        if (!isChunked)
-                                            isChunked = true
-
-                                        if (resData.toString().slice(-5) == '0\r\n\r\n') { //end of chunked encoding
-                                            addToCache(dataWhole[0], reqData.rawURL, dataWhole.splice(0, 1))
-                                        }
-                                    } else {
-                                        clientProxyConn.write(resData)
-                                        if (timing)
-                                            console.log({ url: reqData.rawURL, cached: false, time: `${(Date.now() - startTime).toString()}ms` })
-                                        clientProxyConn.pipe(toServerConn).pipe(clientProxyConn)
-                                        addToCache(resData, reqData.rawURL)
-                                    }
-                                }
-                            })
-                        } else {
-                            if (cachedRes.chunkArr) { //data was chunked, send each TCP packet
-                                clientProxyConn.write(cachedRes.cachedStr)
-                                cachedRes.chunkArr.forEach(e => {
-                                    clientProxyConn.write(e)
-                                })
-                            } else {
-                                clientProxyConn.write(cachedRes)
-                            }
-                            if (timing)
-                                console.log({ url: reqData.rawURL, cached: true, time: `${(Date.now() - startTime).toString()}ms` })
-                        }
-                    }
-                }
-
-                if (verbose)
-                    console.log({
-                        Message: 'Connection Established',
-                        Hostname: (reqData.isHTTPS ? reqData.host : reqData.rawURL),
-                        Port: reqData.port,
-                        HTTPS: reqData.isHTTPS
-                    })
-                toServerConn.on('error', (err) => {
-                    if (!suppressErrs)
-                        console.error({ 'Server Error': err })
-                })
-                toServerConn.on('close', () => {
-                    console.warn({ 'Server Closed Conn': `${reqData.host}:${reqData.port}` })
-                })
-            })
-            clientProxyConn.on('error', (err) => {
-                if (!suppressErrs)
-                    console.error({ 'Client Error': err })
-            })
-            clientProxyConn.on('close', () => {
-                console.warn({ 'Client Closed Conn': `${reqData.host}:${reqData.port}` })
-            })
-        } else {
             if (verbose)
                 console.log({
                     Message: 'Connection Blocked',
@@ -159,7 +63,119 @@ server.on('connection', (clientProxyConn) => {
                     Port: reqData.port,
                     HTTPS: reqData.isHTTPS
                 })
+            return
         }
+
+        let toServerConn = net.createConnection({
+            host: reqData.host,
+            port: reqData.port
+        }, () => {
+            //if is HTTPS, confirm connection
+            //else send the request to the server
+            if (reqData.isHTTPS || !caching) {
+                if (reqData.isHTTPS)
+                    clientProxyConn.write('HTTP/1.1 200 OK\r\n\n')
+                //Don't manually handle subsequent data streams, this is easier, faster and uses less memory
+                //readableSrc.pipe(writableDest)
+                clientProxyConn.pipe(toServerConn).pipe(clientProxyConn)
+            } else {
+                if (isWebsocketRequest(data)) {//don't cache websockets, or headers that request 'no-cache'
+                    console.log(`Not caching websocket request for: ${reqData.rawURL}`)
+                    clientProxyConn.pipe(toServerConn).pipe(clientProxyConn)
+                } else { //need to manually handle chunked data
+                    let cachedRes = getFromCache(reqData.rawURL)
+                    let startTime = Date.now()
+                    if (!cachedRes) { //response not already cached 
+                        toServerConn.write(data)
+                        let dataWhole = []
+                        let isChunked = false
+                        let cacheableResponse = false
+                        let checkedCachability = false
+                        toServerConn.on('data', (resData) => {
+                            if (!checkedCachability) { //need to check if we can cache it
+                                cacheableResponse = isCacheableResponse(resData)
+                                checkedCachability = true
+                            }
+
+                            if (!cacheableResponse) { //not cacheable
+                                console.log(`Packet from '${reqData.rawURL}', does not allow caching`)
+                                clientProxyConn.write(resData)
+                                clientProxyConn.pipe(toServerConn).pipe(clientProxyConn)
+                            } else {
+                                if (isChunked || resData.toString().includes('Transfer-Encoding: chunked\r\n')) { //for chunked data need to cache differently
+                                    console.log('Chunked data incoming!')
+                                    clientProxyConn.write(resData)
+
+                                    dataWhole.push(resData)
+                                    if (!isChunked)
+                                        isChunked = true
+
+                                    if (resData.toString().slice(-5) == '0\r\n\r\n') { //end of chunked encoding
+                                        addToCache(dataWhole[0], reqData.rawURL, dataWhole.splice(0, 1))
+                                    }
+                                } else {
+                                    // console.log('multiple requests in same connection, oh no!')
+                                    let rawURL_arr = [reqData.rawURL]
+                                    let startTimeArr = [startTime]
+                                    clientProxyConn.on('data', (data) => {
+                                        let tmpDetails = getAddrAndPort(data.toString('binary'))
+                                        rawURL_arr.push(tmpDetails.rawURL)
+                                        startTimeArr.push(Date.now() / 1000)
+                                        toServerConn.write(data)
+                                    })
+                                    // console.log(resData.toString())
+                                    clientProxyConn.write(resData)
+                                    let tmpRawURL = rawURL_arr.shift()
+                                    if (timing) {
+                                        // console.log({ url: reqData.rawURL, cached: false, time: `${(Date.now() - startTime).toString()}ms` })
+                                        console.log({ url: tmpRawURL, cached: false, time: `${(Date.now() - startTimeArr[0]).toString()}ms` })
+                                        startTimeArr.shift()
+                                    }
+                                    addToCache(resData, tmpRawURL)
+
+                                    // clientProxyConn.pipe(toServerConn).pipe(clientProxyConn)
+
+                                }
+                            }
+                        })
+                    } else {
+                        if (cachedRes.chunkArr) { //data was chunked, send each TCP packet
+                            clientProxyConn.write(cachedRes.cachedStr)
+                            cachedRes.chunkArr.forEach(e => {
+                                clientProxyConn.write(e)
+                            })
+                        } else {
+                            // console.log(cachedRes.toString())
+                            clientProxyConn.write(cachedRes)
+                        }
+                        if (timing)
+                            console.log({ url: reqData.rawURL, cached: true, time: `${(Date.now() - startTime).toString()}ms` })
+                    }
+                }
+            }
+
+            if (verbose)
+                console.log({
+                    Message: 'Connection Established',
+                    Hostname: (reqData.isHTTPS ? reqData.host : reqData.rawURL),
+                    Port: reqData.port,
+                    HTTPS: reqData.isHTTPS
+                })
+            toServerConn.on('error', (err) => {
+                if (!suppressErrs)
+                    console.error({ 'Server Error': err })
+            })
+            toServerConn.on('close', () => {
+                console.warn({ 'Server Closed Conn': `${reqData.host}:${reqData.port}` })
+            })
+        })
+        clientProxyConn.on('error', (err) => {
+            if (!suppressErrs)
+                console.error({ 'Client Error': err })
+        })
+        clientProxyConn.on('close', () => {
+            console.warn({ 'Client Closed Conn': `${reqData.host}:${reqData.port}` })
+        })
     })
 })
 
@@ -180,6 +196,7 @@ let getAddrAndPort = (data) => {
         hostData['host'] = splitStr[0]
         hostData['port'] = splitStr[1]
     } else {
+        // console.log(data)
         hostData['rawURL'] = data.split('http://')[1].split(' ')[0]
         let splitStr = data.split(`Host: `)[1].split(`\r\n`)[0].split(`:`)
         hostData['host'] = splitStr[0]
@@ -212,7 +229,8 @@ stdin.addListener('data', (data) => {
  * noverbose - disables printing of all connections to console  
  * timing - print timing data of cache hits/misses  
  * notiming - disables printing of cache hit/miss timing data  
- * showsaving - shows how many bytes have been served from cache  
+ * showsaving - shows how many bytes have been served from cache 
+ * showcachesize - shows how big the current cache is 
  */
 let handleInput = (consoleInput) => {
     let splitData = consoleInput.split(' ')
@@ -255,6 +273,9 @@ let handleInput = (consoleInput) => {
             break
         case 'showsaving':
             console.log({ 'Saved Bytes': bytesSavedFromNetwork.toLocaleString() })
+            break
+        case 'showcachesize':
+            console.log({ 'Cache Size': currentCacheSize.toLocaleString() })
             break
         default:
             console.error(`Input not recognised: ${keyword}, is not a keyword`)
@@ -311,10 +332,15 @@ let getFromCache = (url) => {
  */
 let addToCache = (responseBuffer, url, chunkArr = false) => {
     let parsedBuffer = responseBuffer.toString('binary')
-    if (parsedBuffer.includes('404 Not Found\r\n'))//dont cache 404
-        return
-    if (parsedBuffer.includes('Cache-Control: max-age=')) {
-        let expiryTime = parsedBuffer.split('Cache-Control: max-age=')[1]
+    let parsedTotal = parsedBuffer.split('\r\n\r\n')
+    let parsedBody = parsedTotal[1]
+    let parsedBufferHead = parsedTotal[0] //extract the header
+    if (parsedBufferHead.includes('404 Not Found\r\n')) {//dont cache 404
+        // console.log(`Not caching 404 responses`)
+        // return
+    }
+    if (parsedBufferHead.includes('Cache-Control: max-age=')) {
+        let expiryTime = parsedBufferHead.split('Cache-Control: max-age=')[1]
         if (expiryTime && expiryTime.split('\r\n', 1)[0]) {
             let size = responseBuffer.length
             if (chunkArr)
@@ -323,22 +349,26 @@ let addToCache = (responseBuffer, url, chunkArr = false) => {
                 })
             expiryTime = expiryTime.split('\r\n', 1)[0].split(',')[0]
             expiryTime = parseInt(expiryTime) + Math.floor((Date.now() / 1000))
-            if (parsedBuffer.includes('Age: ')) { //header includes age, this is ideal
-                var ageSplit = parsedBuffer.split('Age: ')
+            if (parsedBufferHead.includes('Age: ')) { //header includes age, this is ideal
+                var ageSplit = parsedBufferHead.split('Age: ')
+
                 var secondHalfData = ageSplit[1].split('\r\n')
                 expiryTime -= parseInt(secondHalfData[0])
                 var startTime = Math.floor(Date.now() / 1000) - parseInt(secondHalfData[0])
+                secondHalfData.splice(0, 1)
+                secondHalfData = secondHalfData.join('\r\n') + '\r\n\r\n' + parsedBody.toString('binary')
             } else { //header does not include age, this is not ideal
-                let theHeaderArr = parsedBuffer.split('Cache-Control: max-age=')
+                let theHeaderArr = parsedBufferHead.split('Cache-Control: max-age=')
+                var startTime = 0
                 theHeaderArr[0] += 'Cache-Control: max-age='
                 theHeaderArr[1] = theHeaderArr[1].split('\r\n')
                 theHeaderArr[0] += theHeaderArr[1][0] + '\r\n'
                 var ageSplit = []
                 ageSplit[0] = theHeaderArr[0]
-                var secondHalfData = theHeaderArr[1]
+                var secondHalfData = parsedBuffer.slice(ageSplit[0].length)
+                // console.log({ secondHalf: secondHalfData })
             }
-            secondHalfData.splice(0, 1)
-            secondHalfData = secondHalfData.join('\r\n')
+
             cache[url] = {
                 expiryTime: expiryTime,
                 firstHalfData: ageSplit[0] + 'Age: ',
@@ -350,9 +380,11 @@ let addToCache = (responseBuffer, url, chunkArr = false) => {
             currentCacheSize += size
             console.log({ CachedURL: url, Size: `${size.toLocaleString()} bytes` })
         } else {
+            // console.log(parsedBufferHead)
             console.log(`Could not cache response from: ${url}, due to header parameters`)
         }
     } else {
+        // console.log(parsedBufferHead)
         console.log(`Could not cache response from: ${url}, due to header parameters`)
     }
 }
@@ -364,7 +396,7 @@ let addToCache = (responseBuffer, url, chunkArr = false) => {
  */
 let isWebsocketRequest = (rawData) => {
     let stringifiedData = rawData.toString()
-    if (stringifiedData.includes('Upgrade: WebSocket\r\n') || stringifiedData.includes('Connection: Upgrade\r\n'))
+    if (stringifiedData.includes('Upgrade: websocket\r\n') || stringifiedData.includes('Connection: upgrade\r\n'))
         return true
     return false
 }

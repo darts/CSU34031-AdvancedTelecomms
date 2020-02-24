@@ -64,6 +64,7 @@ Commands:
 - `timing` - print timing data of cache hits/misses
 - `notiming` - disables printing of cache hit/miss timing data
 - `showsaving` - shows how many bytes have been served from cache
+- `showcachesize` - shows the current cache size
 
 ### Code
 
@@ -81,7 +82,6 @@ const blockListPath = path.join(__dirname, blockListName)
 let verbose = true
 let caching = true
 let timing = true
-let maxCacheSize = 10000000 //10MB cache
 let currentCacheSize = 0
 let bytesSavedFromNetwork = 0 //how much bandwidth has been saved
 let suppressErrs = false
