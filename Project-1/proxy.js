@@ -9,6 +9,7 @@ const blockListName = 'blockList.json'
 const blockListPath = path.join(__dirname, blockListName)
 let verbose = true
 let caching = true
+let timing = true
 
 /**
  * Read and return blocklist  
@@ -70,6 +71,7 @@ server.on('connection', (clientProxyConn) => {
                         // let dataWhole = data
                         // clientProxyConn.on('end', () =>{
                         let cachedRes = getFromCache(reqData.rawURL)
+                        let startTime = Date.now()
                         if (!cachedRes) {
                             toServerConn.write(data)
                             // let dataWhole = Buffer.from('','binary')
@@ -94,11 +96,14 @@ server.on('connection', (clientProxyConn) => {
                                     }
                                 } else {
                                     clientProxyConn.write(resData)
+                                    if(timing)
+                                    console.log({url:reqData.rawURL, cached:false, time:`${(Date.now() - startTime).toString()}ms` })
                                     addToCache(resData, reqData.rawURL)
                                 }
                             })
                         } else {
                             clientProxyConn.write(cachedRes)
+                            console.log({url:reqData.rawURL, cached:true, time:`${(Date.now() - startTime).toString()}ms` })
                         }
                         // })
                     }
@@ -252,7 +257,7 @@ let getFromCache = (url) => {
             console.log(`Cached data for ${url}, found`)
             let cachedStr = tmpCache.firstHalfData + (Math.floor(Date.now() / 1000) - tmpCache.startTime) + tmpCache.secondHalfData
             cachedStr = Buffer.from(cachedStr, 'binary')
-            console.log(cachedStr)
+            // console.log(cachedStr)
 
             return cachedStr
         } else {
