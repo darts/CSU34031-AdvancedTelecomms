@@ -1,3 +1,73 @@
+# CSU34031 Advanced Telecommunications
+
+## Project-1 - Senán d'Art - 17329580
+
+### Introduction
+
+
+### High-Level Overview
+
+For every connection to the proxy server (multiple occurences possible for each user):  
+
+- If the requested **URL is not blacklisted**:
+  - If the connection **uses TLS or is a Websocket**:
+    - Pipe all packets from server to client
+    - Pipe all packets from client to server
+    - Notes:
+      - There is no reason to parse this data further
+  - Else the connection **does not use TLS and is not a websocket**:
+    - If the **packet is cached already**:
+      - If the **cached item is not expired**:
+        - Update the age of the packet and send it as response to the client
+      - Else the **cached item is expired**:
+        - Remove from cache and continue as if it was never cached
+    - Else **packet is not cached**:
+      - Send request to server
+      - On server response:
+        - If the **response packet is cache-able** (based on header params):
+          - If **response is chunked**:
+            - Send each chunk to the user as it arrives
+            - Temporarily store each chunk
+            - When transmission is complete -> add all chunked data to cache
+          - Else **response is not chunked**
+            - Send response packet to client
+            - Add packet to cache
+        - Else the **response packet is not cache-able**:
+          - Pipe the response to the user
+- Else the requested **URL is blacklisted**:
+  - Send a `403 FORBIDDEN` response to the client
+  - Close the connection
+
+### Installation
+
+Requires:
+
+- NodeJS 12.13.1+
+- npm (if for some reason it wasn't bundled with Node)
+
+Set up:
+
+1. Open a terminal in the directory containing `proxy.js` and `package.json`
+2. Run `npm install` (may require sudo)
+3. Run `npm start`
+
+### Usage
+
+Commands:
+
+- `block <domain>` - adds specified domain to blocklist
+- `unblock <domain>` - removes domain from blocklist
+- `cache` - enables caching
+- `nocache` - disables caching
+- `verbose` - prints all connections to console
+- `noverbose` - disables printing of all connections to console
+- `timing` - print timing data of cache hits/misses
+- `notiming` - disables printing of cache hit/miss timing data
+- `showsaving` - shows how many bytes have been served from cache
+
+### Code
+
+```javascript
 process.env.UV_THREADPOOL_SIZE = 1000
 const net = require('net')
 const fs = require('fs')
@@ -48,7 +118,6 @@ server.on('error', (err) => {
 //new connection to server
 server.on('connection', (clientProxyConn) => {
     //create the connection
-
     clientProxyConn.once('data', (data) => {
         let theData = data.toString()
         let reqData = getAddrAndPort(theData)
@@ -136,6 +205,7 @@ server.on('connection', (clientProxyConn) => {
                         Port: reqData.port,
                         HTTPS: reqData.isHTTPS
                     })
+
                 toServerConn.on('error', (err) => {
                     if (!suppressErrs)
                         console.error({ 'Server Error': err })
@@ -144,6 +214,7 @@ server.on('connection', (clientProxyConn) => {
                     console.warn({ 'Server Closed Conn': `${reqData.host}:${reqData.port}` })
                 })
             })
+
             clientProxyConn.on('error', (err) => {
                 if (!suppressErrs)
                     console.error({ 'Client Error': err })
@@ -379,3 +450,5 @@ let isCacheableResponse = (rawData) => {
         return false
     return true
 }
+
+```
