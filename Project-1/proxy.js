@@ -75,9 +75,9 @@ server.on('connection', (clientProxyConn) => {
                             let dataWhole = []
                             let isChunked = false
                             toServerConn.on('data', (resData) => {
-                                console.log('got some data from the web')
                                 if (isChunked || resData.toString().includes('Transfer-Encoding: chunked\r\n')) {
                                     // console.log({data:resData.toString().slice(-5)})
+                                    clientProxyConn.write(resData)
                                     dataWhole.push(resData)
                                     // dataWhole = Buffer.concat([resData, dataWhole])
                                     if (!isChunked)
@@ -86,7 +86,7 @@ server.on('connection', (clientProxyConn) => {
                                     if (resData.toString().slice(-5) == '0\r\n\r\n') {
                                         console.log(dataWhole.toString())
                                         dataWhole.forEach(e =>{
-                                            clientProxyConn.write(e)
+                                            // clientProxyConn.write(e)
                                         })
                                         // clientProxyConn.write(dataWhole)
                                         // addToCache(dataWhole, reqData.rawURL)
@@ -95,8 +95,6 @@ server.on('connection', (clientProxyConn) => {
                                     clientProxyConn.write(resData)
                                     addToCache(resData, reqData.rawURL)
                                 }
-
-
                             })
                         } else {
                             clientProxyConn.write(cachedRes)
