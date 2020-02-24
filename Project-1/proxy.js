@@ -85,10 +85,10 @@ server.on('connection', (clientProxyConn) => {
                                     // dataWhole = Buffer.concat([resData, dataWhole])
                                     if (!isChunked)
                                         isChunked = true
-                                    
+
                                     if (resData.toString().slice(-5) == '0\r\n\r\n') {
                                         console.log(dataWhole.toString())
-                                        dataWhole.forEach(e =>{
+                                        dataWhole.forEach(e => {
                                             // clientProxyConn.write(e)
                                         })
                                         // clientProxyConn.write(dataWhole)
@@ -96,14 +96,15 @@ server.on('connection', (clientProxyConn) => {
                                     }
                                 } else {
                                     clientProxyConn.write(resData)
-                                    if(timing)
-                                    console.log({url:reqData.rawURL, cached:false, time:`${(Date.now() - startTime).toString()}ms` })
+                                    if (timing)
+                                        console.log({ url: reqData.rawURL, cached: false, time: `${(Date.now() - startTime).toString()}ms` })
                                     addToCache(resData, reqData.rawURL)
                                 }
                             })
                         } else {
                             clientProxyConn.write(cachedRes)
-                            console.log({url:reqData.rawURL, cached:true, time:`${(Date.now() - startTime).toString()}ms` })
+                            if (timing)
+                                console.log({ url: reqData.rawURL, cached: true, time: `${(Date.now() - startTime).toString()}ms` })
                         }
                         // })
                     }
@@ -191,6 +192,8 @@ stdin.addListener('data', (data) => {
  * nocache - disables caching  
  * verbose - prints all connections to console  
  * noverbose - disables printing of all connections to console  
+ * timing - print timing data of cache hits/misses  
+ * notiming - disables printing of cache hit/miss timing data  
  */
 let handleInput = (consoleInput) => {
     let splitData = consoleInput.split(' ')
@@ -224,6 +227,12 @@ let handleInput = (consoleInput) => {
             break
         case 'nocache':
             caching = false
+            break
+        case 'timing':
+            timing = true
+            break
+        case 'notiming':
+            timing = false
             break
         default:
             console.error(`Input not recognised: ${keyword}, is not a keyword`)
