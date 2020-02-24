@@ -3,10 +3,11 @@ const fs = require('fs')
 const path = require('path')
 const server = net.createServer()
 const port = 4000
-const stdin = process.openStdin();
+const stdin = process.openStdin()
 const blockListName = 'blockList.json'
 const blockListPath = path.join(__dirname, blockListName)
 let verbose = true
+let caching = true
 
 /**
  * Read and return blocklist  
@@ -27,7 +28,7 @@ server.on('close', () => {
 //Something broke
 server.on('error', (err) => {
     console.error({ ERROR: err })
-    throw err
+    // throw err
 })
 
 //TODO make this multithreaded, maybe workers with credentials?
@@ -53,8 +54,6 @@ server.on('connection', (clientProxyConn) => {
             }, () => {
                 // console.log({theData:theData, cacheControl:theData.split('Cache-Control: ')[1].split('\r\n\r\n')[0]})
 
-
-
                 //if is HTTPS, confirm connection
                 //else send the request to the server
                 if (reqData.isHTTPS) {
@@ -63,16 +62,46 @@ server.on('connection', (clientProxyConn) => {
                     //readableSrc.pipe(writableDest)
                     clientProxyConn.pipe(toServerConn).pipe(clientProxyConn)
                 } else {
-                    console.log(reqData)
-                    let cachedRes = getFromCache(reqData.rawURL)
-                    if (!cachedRes) {
-                        toServerConn.write(data)
-                        toServerConn.on('data', (resData) => {
-                            clientProxyConn.write(resData)
-                            addToCache(resData, reqData.rawURL)
-                        })
-                    }else{
-                        clientProxyConn.write(cachedRes)
+                    if (isWebsocketRequest(data)) {//don't cache websockets
+                        clientProxyConn.pipe(toServerConn).pipe(clientProxyConn)
+                    } else { //need to manually handle chunked data
+                        // console.log(reqData)
+                        // let dataWhole = data
+                        // clientProxyConn.on('end', () =>{
+                        let cachedRes = getFromCache(reqData.rawURL)
+                        if (!cachedRes) {
+                            toServerConn.write(data)
+                            // let dataWhole = Buffer.from('','binary')
+                            let dataWhole = []
+                            let isChunked = false
+                            toServerConn.on('data', (resData) => {
+                                console.log('got some data from the web')
+                                if (isChunked || resData.toString().includes('Transfer-Encoding: chunked\r\n')) {
+                                    // console.log({data:resData.toString().slice(-5)})
+                                    dataWhole.push(resData)
+                                    // dataWhole = Buffer.concat([resData, dataWhole])
+                                    if (!isChunked)
+                                        isChunked = true
+                                    
+                                    if (resData.toString().slice(-5) == '0\r\n\r\n') {
+                                        console.log(dataWhole.toString())
+                                        dataWhole.forEach(e =>{
+                                            clientProxyConn.write(e)
+                                        })
+                                        // clientProxyConn.write(dataWhole)
+                                        // addToCache(dataWhole, reqData.rawURL)
+                                    }
+                                } else {
+                                    clientProxyConn.write(resData)
+                                    addToCache(resData, reqData.rawURL)
+                                }
+
+
+                            })
+                        } else {
+                            clientProxyConn.write(cachedRes)
+                        }
+                        // })
                     }
                 }
 
@@ -186,6 +215,12 @@ let handleInput = (consoleInput) => {
         case 'noverbose':
             verbose = false
             break
+        case 'cache':
+            caching = true
+            break
+        case 'nocache':
+            caching = false
+            break
         default:
             console.error(`Input not recognised: ${keyword}, is not a keyword`)
             break
@@ -210,21 +245,14 @@ let writeBlockList = (blockList) => {
  * @return {{cacheObj}}
  */
 let getFromCache = (url) => {
+    if (!caching)
+        return false
     if (cache[url]) {
         let tmpCache = cache[url]
         if (tmpCache.expiryTime > (Date.now() / 1000)) {
             console.log(`Cached data for ${url}, found`)
-            let cachedStr = tmpCache.firstHalfData + (Math.floor(Date.now()/1000) - tmpCache.startTime) + tmpCache.secondHalfData
-
-
-            // console.log(cachedStr)
-            // console.log(Buffer.from(cachedStr).toJSON())
-
-            // return false
-            // btoa(cachedStr)
-            // cachedStr = btoa(cachedStr)
-
-            cachedStr = Buffer.from(cachedStr,'binary')
+            let cachedStr = tmpCache.firstHalfData + (Math.floor(Date.now() / 1000) - tmpCache.startTime) + tmpCache.secondHalfData
+            cachedStr = Buffer.from(cachedStr, 'binary')
             console.log(cachedStr)
 
             return cachedStr
@@ -243,7 +271,6 @@ let getFromCache = (url) => {
 let addToCache = (responseBuffer, url) => {
     let parsedBuffer = responseBuffer.toString('binary')
 
-
     if (parsedBuffer.includes('Cache-Control: max-age=')) {
         let expiryTime = parsedBuffer.split('Cache-Control: max-age=')[1].split('\r\n')[0]
         if (expiryTime) {
@@ -251,11 +278,11 @@ let addToCache = (responseBuffer, url) => {
             let ageSplit = parsedBuffer.split('Age: ')
             let secondHalfData = ageSplit[1].split('\r\n')
             expiryTime -= parseInt(secondHalfData[0])
-    
-            let startTime = Math.floor(Date.now()/1000) - parseInt(secondHalfData[0])
+
+            let startTime = Math.floor(Date.now() / 1000) - parseInt(secondHalfData[0])
             // let startTime = parseInt(secondHalfData[0]) + Math.floor((Date.now() / 1000))
             // console.log(startTime)
-            secondHalfData.splice(0,1)
+            secondHalfData.splice(0, 1)
             secondHalfData = secondHalfData.join('\r\n')
             // console.log(secondHalfData)
             cache[url] = {
@@ -268,7 +295,19 @@ let addToCache = (responseBuffer, url) => {
         } else {
             console.log(`Could not cache response from: ${url}, due to header parameters`)
         }
-    }else{
+    } else {
         console.log(`Could not cache response from: ${url}, due to header parameters`)
     }
+}
+
+/**
+ * Determines if a HTTP request is for a websocket
+ * @param {Buffer} rawData The raw request data
+ * @return {Boolean} If it is a websocket request
+ */
+let isWebsocketRequest = (rawData) => {
+    let stringifiedData = rawData.toString()
+    if (stringifiedData.includes('Upgrade: WebSocket\r\n') || stringifiedData.includes('Connection: Upgrade\r\n'))
+        return true
+    return false
 }
