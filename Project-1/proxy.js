@@ -45,7 +45,7 @@ server.on('error', (err) => {
     })
 })
 
-//Client should only connect once so we can thread this bit
+//new connection to server
 server.on('connection', (clientProxyConn) => {
     //create the connection
     clientProxyConn.once('data', (data) => {
