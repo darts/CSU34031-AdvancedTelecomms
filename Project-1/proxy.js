@@ -41,7 +41,6 @@ server.on('error', (err) => {
     })
 })
 
-//TODO make this multithreaded, maybe workers with credentials?
 //Client should only connect once so we can thread this bit
 server.on('connection', (clientProxyConn) => {
     //create the connection
@@ -85,31 +84,43 @@ server.on('connection', (clientProxyConn) => {
                             // let dataWhole = Buffer.from('','binary')
                             let dataWhole = []
                             let isChunked = false
+                            let cacheableResponse = false
+                            let checkedCachability = false
                             // console.log({oldFromClientData:theData})
                             // clientProxyConn.on('data', newData =>{
                             //     console.log({fromClientData:newData.toString()})
                             // })
                             toServerConn.on('data', (resData) => {
-                                if (isChunked || resData.toString().includes('Transfer-Encoding: chunked\r\n')) {
-                                    console.log('Chunky boi incoming')
-                                    console.log({ data: resData.toString() })
-
-                                    clientProxyConn.write(resData)
-
-                                    dataWhole.push(resData)
-                                    // dataWhole = Buffer.concat([resData, dataWhole])
-                                    if (!isChunked)
-                                        isChunked = true
-
-                                    if (resData.toString().slice(-5) == '0\r\n\r\n') {
-                                        addToCache(dataWhole[0], reqData.rawURL, dataWhole.splice(0, 1))
-                                    }
-                                } else {
-                                    clientProxyConn.write(resData)
-                                    if (timing)
-                                        console.log({ url: reqData.rawURL, cached: false, time: `${(Date.now() - startTime).toString()}ms` })
+                                if (!checkedCachability) {
+                                    cacheableResponse = isCacheableResponse(resData)
+                                    checkedCachability = true
+                                    // console.log(cacheableResponse)
+                                    // console.log(resData.toString())
+                                }
+                                if (!cacheableResponse) {
                                     clientProxyConn.pipe(toServerConn).pipe(clientProxyConn)
-                                    addToCache(resData, reqData.rawURL)
+                                } else {
+                                    if (isChunked || resData.toString().includes('Transfer-Encoding: chunked\r\n')) {
+                                        console.log('Chunky boi incoming')
+                                        console.log({ data: resData.toString() })
+
+                                        clientProxyConn.write(resData)
+
+                                        dataWhole.push(resData)
+                                        // dataWhole = Buffer.concat([resData, dataWhole])
+                                        if (!isChunked)
+                                            isChunked = true
+
+                                        if (resData.toString().slice(-5) == '0\r\n\r\n') {
+                                            addToCache(dataWhole[0], reqData.rawURL, dataWhole.splice(0, 1))
+                                        }
+                                    } else {
+                                        clientProxyConn.write(resData)
+                                        if (timing)
+                                            console.log({ url: reqData.rawURL, cached: false, time: `${(Date.now() - startTime).toString()}ms` })
+                                        clientProxyConn.pipe(toServerConn).pipe(clientProxyConn)
+                                        addToCache(resData, reqData.rawURL)
+                                    }
                                 }
                             })
                         } else {
@@ -307,6 +318,11 @@ let addToCache = (responseBuffer, url, chunkArr = false) => {
     if (parsedBuffer.includes('Cache-Control: max-age=')) {
         let expiryTime = parsedBuffer.split('Cache-Control: max-age=')[1]
         if (expiryTime && expiryTime.split('\r\n', 1)[0]) {
+            let size = responseBuffer.length
+            if (chunkArr)
+                chunkArr.forEach(e => {
+                    size += e.length
+                })
             expiryTime = expiryTime.split('\r\n', 1)[0].split(',')[0]
             expiryTime = parseInt(expiryTime) + Math.floor((Date.now() / 1000))
             if (parsedBuffer.includes('Age: ')) { //header includes age, this is ideal
@@ -334,9 +350,10 @@ let addToCache = (responseBuffer, url, chunkArr = false) => {
                 firstHalfData: ageSplit[0] + 'Age: ',
                 secondHalfData: '\r\n' + secondHalfData,
                 startTime: startTime,
-                chunkArr: chunkArr
+                chunkArr: chunkArr,
+                size: size
             }
-            // console.log(cache[url])
+            console.log({ CachedURL: url, Size: `${size.toLocaleString()} bytes` })
         } else {
             console.log(`Could not cache response from: ${url}, due to header parameters`)
         }
@@ -349,13 +366,23 @@ let addToCache = (responseBuffer, url, chunkArr = false) => {
  * Determines if a HTTP request is for a websocket
  * @param {Buffer} rawData The raw request data
  * @param {Boolean} allowNoCache Respond true to no cache requests
- * @return {Boolean} If it is a websocket request
  */
-let isWebsocketRequest = (rawData, allowNoCache = false) => {
+let isWebsocketRequest = (rawData) => {
     let stringifiedData = rawData.toString()
     if (stringifiedData.includes('Upgrade: WebSocket\r\n') || stringifiedData.includes('Connection: Upgrade\r\n'))
         return true
-    if (!allowNoCache && (stringifiedData.includes('Cache-Control: no-cache\r\n') || stringifiedData.includes('Pragma: no-cache\r\n') || !stringifiedData.includes('Cache-Control: max-age=')))
-        return true
     return false
+}
+
+/**
+ * Determines if a response wants to be cached
+ * @param {Buffer} rawData
+ */
+let isCacheableResponse = (rawData) => {
+    let stringifiedData = rawData.toString()
+    if (stringifiedData.includes('Cache-Control: no-cache\r\n') || stringifiedData.includes('Pragma: no-cache\r\n') || !stringifiedData.includes('Cache-Control: max-age=')) {
+        console.log(stringifiedData)
+        return false
+    }
+    return true
 }
