@@ -103,7 +103,14 @@ server.on('connection', (clientProxyConn) => {
                                 }
                             })
                         } else {
-                            clientProxyConn.write(cachedRes)
+                            if(cachedRes.chunkArr){
+                                clientProxyConn.write(cachedRes.cachedStr)
+                                cachedRes.chunkArr.forEach(e =>{
+                                    clientProxyConn.write(e)
+                                })
+                            }else{
+                                clientProxyConn.write(cachedRes)
+                            }
                             if (timing)
                                 console.log({ url: reqData.rawURL, cached: true, time: `${(Date.now() - startTime).toString()}ms` })
                         }
@@ -256,7 +263,7 @@ let writeBlockList = (blockList) => {
 
 /**
  * @param {string} url The requested URL  
- * @return {{cacheObj}}
+ * @return {Buffer|{cachedStr:Buffer, chunkArr:Array<Buffer>}}
  */
 let getFromCache = (url) => {
     if (!caching)
@@ -268,8 +275,9 @@ let getFromCache = (url) => {
             let cachedStr = tmpCache.firstHalfData + (Math.floor(Date.now() / 1000) - tmpCache.startTime) + tmpCache.secondHalfData
             cachedStr = Buffer.from(cachedStr, 'binary')
             // console.log(cachedStr)
-
-            return cachedStr
+            if(!tmpCache.chunkArr)
+                return cachedStr
+            return {cachedStr:cachedStr, chunkArr:tmpCache.chunkArr}
         } else {
             console.log(`Cached data for ${url}, expired... purging`)
             return false
@@ -280,9 +288,11 @@ let getFromCache = (url) => {
 
 
 /**
- * @param {Buffer} responseBuffer The raw data response from the server
+ * @param {Buffer} responseBuffer The raw data response from the server  
+ * @param {string} url The url the request if for  
+ * @param {Array<Buffer>} chunkArr The chunks for a chunked response
  */
-let addToCache = (responseBuffer, url) => {
+let addToCache = (responseBuffer, url, chunkArr = false) => {
     let parsedBuffer = responseBuffer.toString('binary')
 
     if (parsedBuffer.includes('Cache-Control: max-age=')) {
@@ -314,7 +324,8 @@ let addToCache = (responseBuffer, url) => {
                 expiryTime: expiryTime,
                 firstHalfData: ageSplit[0] + 'Age: ',
                 secondHalfData: '\r\n' + secondHalfData,
-                startTime: startTime
+                startTime: startTime,
+                chunkArr: chunkArr
             }
             // console.log(cache[url])
         } else {
