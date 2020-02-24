@@ -11,6 +11,10 @@ const blockListPath = path.join(__dirname, blockListName)
 let verbose = true
 let caching = true
 let timing = true
+let maxCacheSize = 10000000 //10MB cache
+let currentCacheSize = 0
+let bytesSavedFromNetwork = 0 //how much bandwidth has been saved
+let suppressErrs = false
 
 /**
  * Read and return blocklist  
@@ -91,6 +95,8 @@ server.on('connection', (clientProxyConn) => {
                             //     console.log({fromClientData:newData.toString()})
                             // })
                             toServerConn.on('data', (resData) => {
+                                // console.log({ data: resData.toString('binary') })
+                                // console.log({ rawURL: reqData.rawURL, data: resData })
                                 if (!checkedCachability) {
                                     cacheableResponse = isCacheableResponse(resData)
                                     checkedCachability = true
@@ -98,11 +104,12 @@ server.on('connection', (clientProxyConn) => {
                                     // console.log(resData.toString())
                                 }
                                 if (!cacheableResponse) {
+                                    clientProxyConn.write(resData)
                                     clientProxyConn.pipe(toServerConn).pipe(clientProxyConn)
                                 } else {
                                     if (isChunked || resData.toString().includes('Transfer-Encoding: chunked\r\n')) {
-                                        console.log('Chunky boi incoming')
-                                        console.log({ data: resData.toString() })
+                                        // console.log('Chunky boi incoming')
+                                        // console.log({ data: resData.toString() })
 
                                         clientProxyConn.write(resData)
 
@@ -142,13 +149,14 @@ server.on('connection', (clientProxyConn) => {
                 if (verbose)
                     console.log({
                         Message: 'Connection Established',
-                        Hostname: reqData.host,
+                        Hostname: (reqData.isHTTPS ? reqData.host : reqData.rawURL),
                         Port: reqData.port,
                         HTTPS: reqData.isHTTPS
                     })
 
                 toServerConn.on('error', (err) => {
-                    console.error({ 'Server Error': err })
+                    if (!suppressErrs)
+                        console.error({ 'Server Error': err })
                 })
                 toServerConn.on('close', () => {
                     console.warn({ 'Server Closed Conn': `${reqData.host}:${reqData.port}` })
@@ -156,7 +164,8 @@ server.on('connection', (clientProxyConn) => {
             })
 
             clientProxyConn.on('error', (err) => {
-                console.error({ 'Client Error': err })
+                if (!suppressErrs)
+                    console.error({ 'Client Error': err })
             })
             clientProxyConn.on('close', () => {
                 console.warn({ 'Client Closed Conn': `${reqData.host}:${reqData.port}` })
@@ -222,6 +231,7 @@ stdin.addListener('data', (data) => {
  * noverbose - disables printing of all connections to console  
  * timing - print timing data of cache hits/misses  
  * notiming - disables printing of cache hit/miss timing data  
+ * showsaving - shows how many bytes have been served from cache  
  */
 let handleInput = (consoleInput) => {
     let splitData = consoleInput.split(' ')
@@ -262,6 +272,9 @@ let handleInput = (consoleInput) => {
         case 'notiming':
             timing = false
             break
+        case 'showsaving':
+            console.log({ 'Saved Bytes': bytesSavedFromNetwork.toLocaleString() })
+            break
         default:
             console.error(`Input not recognised: ${keyword}, is not a keyword`)
             break
@@ -293,8 +306,10 @@ let getFromCache = (url) => {
         if (tmpCache.expiryTime > (Date.now() / 1000)) {
             console.log(`Cached data for ${url}, found`)
             let cachedStr = tmpCache.firstHalfData + (Math.floor(Date.now() / 1000) - tmpCache.startTime) + tmpCache.secondHalfData
+
             cachedStr = Buffer.from(cachedStr, 'binary')
-            // console.log(cachedStr)
+            // console.log({ cacheURL: url, cachedStr: cachedStr, str: cachedStr.toString('binary') })
+            bytesSavedFromNetwork += tmpCache.size
             if (!tmpCache.chunkArr)
                 return cachedStr
             return { cachedStr: cachedStr, chunkArr: tmpCache.chunkArr }
@@ -306,7 +321,6 @@ let getFromCache = (url) => {
     return false
 }
 
-
 /**
  * @param {Buffer} responseBuffer The raw data response from the server  
  * @param {string} url The url the request if for  
@@ -314,7 +328,8 @@ let getFromCache = (url) => {
  */
 let addToCache = (responseBuffer, url, chunkArr = false) => {
     let parsedBuffer = responseBuffer.toString('binary')
-
+    if (parsedBuffer.includes('404 Not Found\r\n'))//dont cache 404
+        return
     if (parsedBuffer.includes('Cache-Control: max-age=')) {
         let expiryTime = parsedBuffer.split('Cache-Control: max-age=')[1]
         if (expiryTime && expiryTime.split('\r\n', 1)[0]) {
@@ -353,6 +368,7 @@ let addToCache = (responseBuffer, url, chunkArr = false) => {
                 chunkArr: chunkArr,
                 size: size
             }
+            currentCacheSize += size
             console.log({ CachedURL: url, Size: `${size.toLocaleString()} bytes` })
         } else {
             console.log(`Could not cache response from: ${url}, due to header parameters`)
@@ -380,9 +396,7 @@ let isWebsocketRequest = (rawData) => {
  */
 let isCacheableResponse = (rawData) => {
     let stringifiedData = rawData.toString()
-    if (stringifiedData.includes('Cache-Control: no-cache\r\n') || stringifiedData.includes('Pragma: no-cache\r\n') || !stringifiedData.includes('Cache-Control: max-age=')) {
-        console.log(stringifiedData)
+    if (stringifiedData.includes('Cache-Control: no-cache\r\n') || stringifiedData.includes('Pragma: no-cache\r\n') || !stringifiedData.includes('Cache-Control: max-age='))
         return false
-    }
     return true
 }
