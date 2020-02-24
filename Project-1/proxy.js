@@ -87,7 +87,7 @@ server.on('connection', (clientProxyConn) => {
                                         isChunked = true
 
                                     if (resData.toString().slice(-5) == '0\r\n\r\n') {
-                                        console.log(dataWhole.toString())
+                                        // console.log(dataWhole.toString())
                                         dataWhole.forEach(e => {
                                             // clientProxyConn.write(e)
                                         })
@@ -98,6 +98,7 @@ server.on('connection', (clientProxyConn) => {
                                     clientProxyConn.write(resData)
                                     if (timing)
                                         console.log({ url: reqData.rawURL, cached: false, time: `${(Date.now() - startTime).toString()}ms` })
+                                    clientProxyConn.pipe(toServerConn).pipe(clientProxyConn)
                                     addToCache(resData, reqData.rawURL)
                                 }
                             })
@@ -285,19 +286,30 @@ let addToCache = (responseBuffer, url) => {
     let parsedBuffer = responseBuffer.toString('binary')
 
     if (parsedBuffer.includes('Cache-Control: max-age=')) {
-        let expiryTime = parsedBuffer.split('Cache-Control: max-age=')[1].split('\r\n')[0]
-        if (expiryTime) {
+        let expiryTime = parsedBuffer.split('Cache-Control: max-age=')[1]
+        if (expiryTime && expiryTime.split('\r\n', 1)[0]) {
+            expiryTime = expiryTime.split('\r\n', 1)[0].split(',')[0]
             expiryTime = parseInt(expiryTime) + Math.floor((Date.now() / 1000))
-            let ageSplit = parsedBuffer.split('Age: ')
-            let secondHalfData = ageSplit[1].split('\r\n')
-            expiryTime -= parseInt(secondHalfData[0])
-
-            let startTime = Math.floor(Date.now() / 1000) - parseInt(secondHalfData[0])
-            // let startTime = parseInt(secondHalfData[0]) + Math.floor((Date.now() / 1000))
-            // console.log(startTime)
+            if (parsedBuffer.includes('Age: ')) { //header includes age, this is ideal
+                var ageSplit = parsedBuffer.split('Age: ')
+                var secondHalfData = ageSplit[1].split('\r\n')
+                expiryTime -= parseInt(secondHalfData[0])
+                var startTime = Math.floor(Date.now() / 1000) - parseInt(secondHalfData[0])
+            } else { //header does not include age, this is not ideal
+                // console.log('No existing Age field')
+                // console.log(parsedBuffer)
+                let theHeaderArr = parsedBuffer.split('Cache-Control: max-age=')
+                theHeaderArr[0] += 'Cache-Control: max-age='
+                theHeaderArr[1] = theHeaderArr[1].split('\r\n')
+                theHeaderArr[0] += theHeaderArr[1][0] + '\r\n'
+                var ageSplit = []
+                ageSplit[0] = theHeaderArr[0]
+                // let tst =[1,2,3,4]
+                // console.log(theHeaderArr[1])
+                var secondHalfData = theHeaderArr[1]
+            }
             secondHalfData.splice(0, 1)
             secondHalfData = secondHalfData.join('\r\n')
-            // console.log(secondHalfData)
             cache[url] = {
                 expiryTime: expiryTime,
                 firstHalfData: ageSplit[0] + 'Age: ',
