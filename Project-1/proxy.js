@@ -77,8 +77,12 @@ server.on('connection', (clientProxyConn) => {
                             // let dataWhole = Buffer.from('','binary')
                             let dataWhole = []
                             let isChunked = false
+                            clientProxyConn.on('data', newData =>{
+                                console.log({fromClientData:newData.toString()})
+                            })
                             toServerConn.on('data', (resData) => {
                                 if (isChunked || resData.toString().includes('Transfer-Encoding: chunked\r\n')) {
+                                    console.log('Chunky boi incoming')
                                     // console.log({data:resData.toString().slice(-5)})
                                     clientProxyConn.write(resData)
                                     dataWhole.push(resData)
@@ -87,12 +91,7 @@ server.on('connection', (clientProxyConn) => {
                                         isChunked = true
 
                                     if (resData.toString().slice(-5) == '0\r\n\r\n') {
-                                        // console.log(dataWhole.toString())
-                                        dataWhole.forEach(e => {
-                                            // clientProxyConn.write(e)
-                                        })
-                                        // clientProxyConn.write(dataWhole)
-                                        // addToCache(dataWhole, reqData.rawURL)
+                                        addToCache(dataWhole[0], reqData.rawURL, dataWhole.splice(0,1))
                                     }
                                 } else {
                                     clientProxyConn.write(resData)
@@ -151,7 +150,6 @@ server.on('connection', (clientProxyConn) => {
         }
     })
 })
-
 
 /**
  * Parses out: hostname, port and if a connection is HTTPS
