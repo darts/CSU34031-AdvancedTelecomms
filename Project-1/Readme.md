@@ -4,6 +4,14 @@
 
 ### Introduction
 
+This project is to:
+
+- Develop a web proxy that can handle HTTP, HTTPS and Websocket connections.
+- Support caching of HTTP packets
+- Support the dynamic blocking of URLs through a management console
+- Support multithreaded operation
+
+I chose to use NodeJS and JavaScript to accomplish these goals.
 
 ### High-Level Overview
 
