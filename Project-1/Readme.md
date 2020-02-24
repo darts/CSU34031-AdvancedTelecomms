@@ -66,6 +66,41 @@ Commands:
 - `showsaving` - shows how many bytes have been served from cache
 - `showcachesize` - shows the current cache size
 
+### Testing
+
+In order to test the performance of the proxy and the effect caching has on responsiveness, I loaded some websites with and without caching.  
+All tests were conducted with Firefox 73.0.1 and repeated 3 times with a restart of the proxy used between each to clear the cache. The `noverbose` flag was enabled for all tests to reduce clutter.  
+I ran the same test on the following sites:
+
+- www.example.com
+  - No-Cache
+    - Webpage
+      - `99ms`, `100ms`, `99ms`
+      - Average: ~`100ms`
+    - Favicon
+      - `532ms`, `550ms`, `565ms`
+      - Average: ~`545ms`
+  - Cache
+    - Webpage
+      - `0ms`, `1ms`, `1ms`
+      - Average: ~`0.5ms`
+    - Favicon
+      - `550ms`, `541ms`, `511ms`
+      - Average: ~`540ms`
+      - This one had a header requesting not to be cached
+    - Bandwith saved: `3,162 Bytes`
+- www.writephponline.com
+  - Notes:
+    - There are lots of requests for various assets on this page so the following are averages
+    - Most of the requests under the hood are actually HTTPS or not cache-able
+  - No-Cache
+    - `1880ms`, `2200ms`, `2280ms`
+    - Average: `~2100ms`
+  - Cache
+    - `1520ms`, `1280ms`, `1400ms`
+    - Average: `~1400ms`
+  - Bandwitdh saved: `3,818 Bytes`
+
 ### Code
 
 ```javascript
