@@ -74,6 +74,10 @@ Commands:
 - `showsaving` - shows how many bytes have been served from cache
 - `showcachesize` - shows the current cache size
 
+### Multithreading
+
+NodeJS operates based on events and callbacks. When an event occurs and has an event handler, that event is handled by a thread. In the case of the `net` library I am using, it will choose a thread from the process threadpool. To multithread the program I assigned the process up to 1000 threads in its threadpool. This means that the proxy can run with up to 1000 threads. Since each thread runs asyncronously this would be enough for many connections with low latency.
+
 ### Testing
 
 In order to test the performance of the proxy and the effect caching has on responsiveness, I loaded some websites with and without caching.  
@@ -112,7 +116,8 @@ I ran the same test on the following sites:
 ### Code
 
 ```javascript
-process.env.UV_THREADPOOL_SIZE = 1000
+process.env.UV_THREADPOOL_SIZE = 1000 //maximum number of threads
+require('events').EventEmitter.defaultMaxListeners = 20 //maximum listeners per event
 const net = require('net')
 const fs = require('fs')
 const path = require('path')
@@ -296,8 +301,7 @@ server.on('connection', (clientProxyConn) => {
 /**
  * Parses out: hostname, port and if a connection is HTTPS
  * @param {string} data data object stringified
- * @returns {{host:string, port:string, isHTTPS:boolean, rawURL:string}} hostname, port, whether
- *  the connection is using HTTPS and the full path trying to be accessed (if HTTP)
+ * @returns {{host:string, port:string, isHTTPS:boolean, rawURL:string}} hostname, port, whether the connection is using HTTPS and the full path trying to be accessed (if HTTP)
  */
 let getAddrAndPort = (data) => {
     let hostData = []

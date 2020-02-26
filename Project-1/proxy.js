@@ -1,4 +1,5 @@
-process.env.UV_THREADPOOL_SIZE = 1000
+process.env.UV_THREADPOOL_SIZE = 1000 //maximum number of threads
+require('events').EventEmitter.defaultMaxListeners = 20 //maximum listeners per event
 const net = require('net')
 const fs = require('fs')
 const path = require('path')
@@ -8,6 +9,7 @@ const port = 4000
 const stdin = process.openStdin()
 const blockListName = 'blockList.json'
 const blockListPath = path.join(__dirname, blockListName)
+path.join(__dirname, '..', 'models', 'user-model.js')
 let verbose = true
 let caching = true
 let timing = true
@@ -410,4 +412,11 @@ let isCacheableResponse = (rawData) => {
     if (stringifiedData.includes('Cache-Control: no-cache\r\n') || stringifiedData.includes('Pragma: no-cache\r\n') || !stringifiedData.includes('Cache-Control: max-age='))
         return false
     return true
+}
+
+
+let obj = {
+    healthy: [],
+    cancerous: [],
+    benign: []
 }
