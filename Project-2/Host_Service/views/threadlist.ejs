@@ -1,0 +1,13 @@
+<div class="feed">
+    <ul class="feedList">
+        <% thread.forEach((e, i) => { %>
+        <li style="background-color: thistle;">
+            <p onclick="moveToThread('<%= i %>')">
+                <%= e.name %>
+                <br>
+                By: <%= e.content[0].username %>
+            </p>
+        </li><br>
+        <% }); %>
+    </ul>
+</div>

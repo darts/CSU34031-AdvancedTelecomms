@@ -1,0 +1,34 @@
+<script>
+    const threadAddr = "http://localhost:3000/thread?thread="
+    const homeAddr = "http://localhost:3000/home"
+    let userName, key;
+
+    let moveToThread = (threadID) => {
+        fetch(threadAddr + threadID).then((res) => {
+            return res.json()
+        }).then(res => {
+            console.log(res)
+            document.body.innerHTML = res.html
+        }).catch(err => {
+            console.log(err)
+            alert("Error connecting to server")
+        })
+    }
+
+    let returnHome = () => {
+        fetch(homeAddr).then((res) => {
+            return res.json()
+        }).then(res => {
+            console.log(res)
+            document.body.innerHTML = res.html
+        }).catch(err => {
+            console.log(err)
+            alert("Error connecting to server")
+        })
+    }
+
+    let addPost = () => {
+
+    }
+
+</script>

@@ -1,0 +1,12 @@
+[
+    {
+        "name": "Welcome!",
+        "content": [
+            {
+                "username": "darts",
+                "timestamp": 1586621388000,
+                "content": "This is the first post!"
+            }
+        ]
+    }
+]

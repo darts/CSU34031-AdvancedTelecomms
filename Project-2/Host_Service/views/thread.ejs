@@ -1,0 +1,18 @@
+<div onclick="returnHome()">
+    BAAAAAACK
+</div>
+<div class="feed">
+    Thread: <%= thread.name %>
+    <ul class="feedList">
+        <% thread.content.forEach((e, i) => { %>
+        <li style="background-color: thistle;">
+            <p>
+                <%= e.content %>
+                <br>
+                By: <%= e.username %> <br>
+                At: <%= new Date(e.timestamp).toUTCString() %>
+            </p>
+        </li><br>
+        <% }); %>
+    </ul>
+</div>
