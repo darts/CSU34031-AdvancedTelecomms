@@ -1,12 +1,28 @@
+const https = require("https")
+const helmet = require("helmet")
+
+
 const app = require('express')()
 const fs = require('fs')
 const path = require('path')
 const threadPath = path.join(__dirname, "threads.json")
 const userPath = path.join(__dirname, "users.json")
+const keyPath = path.join(__dirname, "keys", "server.key")
+const certPath = path.join(__dirname, "keys", "server.crt")
 const sysClock = new Date()
 const ejs = require('ejs')
 const keyLen = 20
 const port = 3000
+
+
+
+const key_options = {
+    key: fs.readFileSync(keyPath),
+    cert: fs.readFileSync(certPath)
+};
+
+app.use(helmet()) //force https
+
 
 /**
  * Read and return all threads (**WARNING** synchronous)
@@ -113,7 +129,9 @@ app.get('/thread', (req, res) => {
     })
 })
 
-app.listen(port, () => console.log(`Host_Service listening at http://localhost:${port}`))
+https.createServer(key_options, app).listen(port);
+
+// app.listen(port, () => console.log(`Host_Service listening at http://localhost:${port}`))
 
 
 let threads = readThreadList()
