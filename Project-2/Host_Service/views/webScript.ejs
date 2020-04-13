@@ -1,7 +1,9 @@
 <script>
     const threadAddr = "https://localhost:3000/thread?thread="
     const homeAddr = "https://localhost:3000/home"
-    let userName, key;
+    const newThreadAddr = "https://localhost:3000/newThread"
+    let userName, key
+    userName = 'darts'
 
     let moveToThread = (threadID) => {
         fetch(threadAddr + threadID).then((res) => {
@@ -25,6 +27,20 @@
             console.log(err)
             alert("Error connecting to server")
         })
+    }
+
+    let postthread = () => {
+        let text = document.getElementById('newthread-container').value
+        console.log(JSON.stringify({ user: userName, title: "placeholder until I add it", content: text }))
+        fetch(newThreadAddr, {
+            method: "POST",
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ user: userName, title: "placeholder until I add it", content: text })
+        })
+        // alert("gotta actually send something")
+        // console.log(document.getElementById('newthread-container').value)
     }
 
     let addPost = (thread, content) => {

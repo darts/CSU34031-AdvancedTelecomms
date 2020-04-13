@@ -93,6 +93,26 @@ let addUser = (username, password) => {
     users[username] = { pwd: password, 'api-key': genKey(keyLen) }
 }
 
+/**
+ * Function to create a new thread
+ * @param {String} username
+ * @param {String} title 
+ * @param {String} content
+ */
+let createThread = (username, title, content) => {
+    threads.push({
+        name: title,
+        content: [
+            {
+                username: username,
+                timestamp: sysClock.getTime(),
+                content: content
+            }
+        ]
+    })
+    writeThreadList(threads)
+}
+
 
 /**
  * Enum for adding messages to thread
@@ -106,7 +126,7 @@ this.threadAdd = Object.freeze({ "SUCCESS": 1, "NO_SUCH_THREAD": -1, "INVALID_CO
  * @return {{Status}}
  */
 let addMessageToThread = ({ threadID, username, content }) => {
-    threads[threadID].content.push({ username: username, timestamp: sysClock.getTime, content: content })
+    threads[threadID].content.push({ username: username, timestamp: sysClock.getTime(), content: content })
     return this.threadAdd.SUCCESS
 }
 
@@ -127,6 +147,12 @@ app.get('/thread', (req, res) => {
     ejs.renderFile('./views/thread.ejs', { thread: threads[req.query.thread] }).then((e) => {
         res.send({ html: e })
     })
+})
+
+app.post('/newThread', (req, res) => {
+    console.log(req.body)
+    // createThread()
+    res.sendStatus(200)
 })
 
 https.createServer(key_options, app).listen(port);
