@@ -1,6 +1,7 @@
 {
     "darts": {
         "pwd": "password",
-        "api-key": "abc123"
+        "public-key": "",
+        "private-key": ""
     }
 }

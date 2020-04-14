@@ -1,12 +1,1 @@
-[
-    {
-        "name": "Welcome!",
-        "content": [
-            {
-                "username": "darts",
-                "timestamp": 1586621388000,
-                "content": "This is the first post!"
-            }
-        ]
-    }
-]
+[{"name":"Welcome!","content":[{"username":"darts","timestamp":1586621388000,"content":"This is the first post!"}]},{"name":"placeholder until I add it","content":[{"username":"darts","timestamp":1586621388000,"content":"test"}]},{"name":"jt","content":[{"username":"darts","timestamp":1586621388000,"content":"dank"}]},{"name":"jt","content":[{"username":"darts","timestamp":1586621388000,"content":"dank"}]},{"name":"ef","content":[{"username":"darts","timestamp":1586621388000,"content":"    ds"}]},{"name":"Test title","content":[{"username":"darts","timestamp":1586621388000,"content":"THis is a test"}]}]

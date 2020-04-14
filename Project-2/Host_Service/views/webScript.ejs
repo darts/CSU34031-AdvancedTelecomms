@@ -21,7 +21,7 @@
         fetch(homeAddr).then((res) => {
             return res.json()
         }).then(res => {
-            console.log(res)
+            // console.log(res)
             document.body.innerHTML = res.html
         }).catch(err => {
             console.log(err)
@@ -31,13 +31,18 @@
 
     let postthread = () => {
         let text = document.getElementById('newthread-container').value
-        console.log(JSON.stringify({ user: userName, title: "placeholder until I add it", content: text }))
+        let title = document.getElementById('newthread-title').value
+        console.log(JSON.stringify({ user: userName, title: title, content: text }))
+
         fetch(newThreadAddr, {
             method: "POST",
             headers: {
+                'Accept': 'application/json',
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify({ user: userName, title: "placeholder until I add it", content: text })
+            body: JSON.stringify({ user: userName, title: title, content: text })
+        }).then(res => {
+            returnHome()
         })
         // alert("gotta actually send something")
         // console.log(document.getElementById('newthread-container').value)

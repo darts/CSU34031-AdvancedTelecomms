@@ -2,7 +2,7 @@ const https = require("https")
 const helmet = require("helmet")
 
 
-const app = require('express')()
+const express = require('express'), app = express()
 const fs = require('fs')
 const path = require('path')
 const threadPath = path.join(__dirname, "threads.json")
@@ -22,7 +22,7 @@ const key_options = {
 };
 
 app.use(helmet()) //force https
-
+app.use(express.json())
 
 /**
  * Read and return all threads (**WARNING** synchronous)
@@ -101,12 +101,12 @@ let addUser = (username, password) => {
  */
 let createThread = (username, title, content) => {
     threads.push({
-        name: title,
-        content: [
+        "name": title,
+        "content": [
             {
-                username: username,
-                timestamp: sysClock.getTime(),
-                content: content
+                "username": username,
+                "timestamp": 1586621388000,
+                "content": content
             }
         ]
     })
@@ -150,8 +150,8 @@ app.get('/thread', (req, res) => {
 })
 
 app.post('/newThread', (req, res) => {
-    console.log(req.body)
-    // createThread()
+    // console.log(req.body)
+    createThread(req.body.user, req.body.title, req.body.content)
     res.sendStatus(200)
 })
 
