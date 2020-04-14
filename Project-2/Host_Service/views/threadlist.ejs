@@ -5,8 +5,8 @@
         margin-right: 40%;
         margin-top: 50px;
         padding-top: 10px;
-        width: 20%;
-        height: 150px;
+        width: 22%;
+        height: 210px;
         position: absolute;
         background: #FBFBF0;
         border: solid #000000 2px;
@@ -14,19 +14,25 @@
         font-family: arial;
         visibility: hidden;
     }
+
+    #rm {
+        padding-right: 8px;
+    }
 </style>
-<div style="padding-right: 6px; padding-left: 25px;">
+<div style="padding-right: 8px; padding-left: 10px; margin-top: 10px;">
     <div id="userlogin"
-        style="width: 100%; text-align: center; margin-bottom: 8px; padding: 3px; background-color: blue;"
+        style="width: 100%; text-align: center; margin-bottom: 8px;padding: 3px; background-color: rgb(153, 153, 153);"
         onclick="document.getElementById('popupbox').style.visibility = 'visible'">
         Login</div>
     <div class="">
-        <input id="newthread-title" style="width: 100%; background-color: chartreuse; margin-bottom: 5px;"
+        <input id="newthread-title" style="width: 100%; background-color: rgb(230, 230, 230); margin-bottom: 5px;"
             placeholder="New Thread Title" value="" required></input>
         <textarea placeholder="The first post" id="newthread-container"
-            style="width: 100%; min-height: 100px; background-color: chartreuse;" required></textarea>
+            style="width: 100%; min-height: 100px; background-color: rgb(230, 230, 230)" required></textarea>
         <br>
-        <button onclick="postthread()">Create Thread</button>
+        <center><button class="btn btn-warning" style="margin-top: 5px; margin-bottom: 10px; width: 100%;"
+                onclick="postthread()">Create
+                Thread</button></center>
     </div>
 </div>
 <div id="popupbox">
@@ -42,21 +48,21 @@
 
 
 <div class="feed">
-    <ul class="feedList">
+    <div class="feedList" style="padding-right: 10px; margin-left: 10px;">
         <% thread.forEach((e, i) => { %>
-        <li style="background-color: thistle;" onclick="moveToThread('<%= i %>')">
-            <p style="margin-top: 0px; margin-bottom: 0px;padding: 5px; word-wrap:break-word;">
+        <div style="background-color: thistle; padding-right: 8px;" onclick="moveToThread('<%= i %>')">
+            <p style="margin-top: 0px; margin-bottom: 0px;padding: 5px; word-wrap:break-word; padding-right: 8px;">
                 <div id="head-<%= i %>" style="word-wrap:break-word;"><%= e.name %></div>
                 <br>
                 By: <%= e.content[0].username %>
             </p>
-        </li>
+        </div>
         <% }); %>
-    </ul>
+    </div>
 </div>
 
-<div style="padding-right: 6px; padding-left: 25px;">
-    <div style="width:100%; text-align: center; background-color: darkkhaki; padding-top: 5px;"
+<div style="padding-right: 10px; padding-left: 10px;">
+    <div class="btn btn-primary" style="width:100%; text-align: center; background-color: darkkhaki; padding-top: 5px;"
         onclick="convertToCrypto()">
         Toggle Crypto
     </div>

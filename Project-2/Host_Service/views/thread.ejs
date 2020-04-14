@@ -1,11 +1,11 @@
 <div style="padding-right: 6px; padding-left: 25px;">
-    <div onclick="returnHome()" style="background-color: brown; width: 100px; ">
+    <div onclick="returnHome()" style="background-color: brown; width: 100px; " class="btn btn-danger">
         Home
     </div>
 </div>
 <div style="padding-right: 6px; padding-left: 25px;">
-    Thread Topic: <div id="title">
-        <%= thread.name %>
+    <div id="title">
+        <b>Thread Topic:</b><%= thread.name %>
     </div>
 </div>
 <div class="feed">
@@ -23,10 +23,9 @@
         </li>
         <% }); %>
         <li style="background-color: thistle;">
-            <p style="padding-left: 10px;">
-                Add To Discussion.
-                <textarea id="newthreadPost" placeholder="Your inspiring message"
-                    style='min-height: 50px; min-width: 600px;'></textarea>
+            <p style="padding-left: 10px; min-height: 100px;">
+                Add To Discussion. <br> <textarea id="newthreadPost" placeholder="Your inspiring message"
+                    style='min-height: 70px; min-width: 600px;'></textarea>
                 <br>
                 <button onclick="addPost()">Post</button> </p>
         </li>

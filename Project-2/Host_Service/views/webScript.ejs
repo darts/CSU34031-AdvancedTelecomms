@@ -23,11 +23,12 @@
             console.log(res)
             document.body.innerHTML = res.html
             curThread = threadID
+
             if (cryptoOnly)
                 filterSingleThread()
         }).catch(err => {
             console.log(err)
-            alert("Error connecting to server")
+            // alert("Error connecting to server")
         })
     }
 
@@ -38,11 +39,13 @@
             // console.log(res)
             document.body.innerHTML = res.html
             threads = res.tjson
+            if (userName)
+                document.getElementById('userlogin').innerText = `Logged in as: ${userName} `
             if (cryptoOnly)
                 filterThreads()
         }).catch(err => {
             console.log(err)
-            alert("Error connecting to server")
+            // alert("Error connecting to server")
         })
     }
 
@@ -126,6 +129,7 @@
                 console.log(decrypt)
 
                 document.getElementById(`head-${i}`).innerText = decrypt.message
+
             } catch (error) {
                 console.log(error)
                 document.getElementById(`head-${i}`).parentNode.parentNode.removeChild(document.getElementById(`head-${i}`).parentNode)
@@ -134,8 +138,8 @@
     }
 
     let filterSingleThread = () => {
-        let decryptTitle = crypt.decrypt(privKey, document.getElementById('title').innerText)
-        document.getElementById('title').innerText = decryptTitle.message
+        let decryptTitle = crypt.decrypt(privKey, document.getElementById('title').innerText.split('Thread Topic:')[1])
+        document.getElementById('title').innerText = ` <b>Thread Topic:</b> ${decryptTitle.message}`
 
         let itList = document.getElementsByClassName('content')
 

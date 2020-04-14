@@ -109,3 +109,5 @@ dist
 Key/
 Project-1/test.js
 Project-2/Host_Service/keys/*
+Project-2/Raw Video/V1.mov
+*.mov
