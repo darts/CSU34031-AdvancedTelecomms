@@ -1,12 +1,13 @@
 <script>
-    const threadAddr = "https://localhost:3000/thread?thread="
-    const homeAddr = "https://localhost:3000/home"
+    const rsa = new RSA()
+    const threadAddr = " https://localhost:3000/thread?thread="
+    const homeAddr = " https://localhost:3000/home"
     const newThreadAddr = "https://localhost:3000/newThread"
     const newPostAddr = "https://localhost:3000/newPost"
-    let userName, key
-    userName = 'darts'
+    const userAddr = "https://localhost:3000/loginCreate"
+    let userName, pubKey, privKey
     let curThread;
-
+    rsa.generateKeyPair(function (keyPair) { pubKey = keyPair.publicKey; privKey = keyPair.privateKey; })
     let moveToThread = (threadID) => {
         fetch(threadAddr + threadID).then((res) => {
             return res.json()
@@ -65,8 +66,28 @@
         })
     }
 
-    let login = (userName) => {
+    let login = () => {
+        let usrname = document.getElementById('unm').value
+        let pwd = document.getElementById('pwd').value
+        let isNewUser = !!document.getElementById('newUser').checked
 
+        fetch(userAddr, {
+            method: "POST",
+            headers: {
+                'Accept': 'application/json',
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ username: usrname, password: pwd, isNewUser: isNewUser, privKey: privKey, pubKey: pubKey })
+        }).then(res => {
+            return res.json()
+        }).then(res => {
+            privKey = res.privKey
+            pubKey = res.pubKey
+            userName = usrname
+
+            document.getElementById('popupbox').style.visibility = 'hidden'
+            document.getElementById('userlogin').innerText = `Logged in as: ${userName}`
+        })
     }
 
 </script>

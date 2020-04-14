@@ -87,10 +87,11 @@ let genKey = (length) => {
  * @param {String} password
  * @return {Boolean} Successfully added
  */
-let addUser = (username, password) => {
-    if (users.includes(username)) //unique names
+let addUser = (username, password, privKey, pubKey) => {
+    if (users.hasOwnProperty(username)) //unique names
         return false
-    users[username] = { pwd: password, 'api-key': genKey(keyLen) }
+    users[username] = { pwd: password, 'public-key': pubKey, "private-key": privKey }
+    writeUserList(users)
 }
 
 /**
@@ -126,8 +127,25 @@ this.threadAdd = Object.freeze({ "SUCCESS": 1, "NO_SUCH_THREAD": -1, "INVALID_CO
  */
 let addMessageToThread = ({ threadID, username, content }) => {
     threads[threadID].content.push({ username: username, timestamp: sysClock.getTime(), content: content })
+    writeThreadList(threads)
     return this.threadAdd.SUCCESS
 }
+
+/**
+ * Checks if user exists and password matches
+ * @param {String} username
+ * @param {String} password
+ * @return {Number} `1` on success, `0` password fail, `-1` username fail
+ */
+let userExists = (username, password) => {
+    if (!users.hasOwnProperty(username))
+        return -1
+    if (!(users[username]['pwd'] === password))
+        return 0
+    return 1
+}
+
+
 
 
 app.get('/', (req, res) => {
@@ -157,6 +175,32 @@ app.post('/newThread', (req, res) => {
 app.post('/newPost', (req, res) => {
     addMessageToThread({ threadID: req.body.thread, username: req.body.user, content: req.body.content })
     res.sendStatus(200)
+})
+
+app.post('/loginCreate', (req, res) => {
+    let username = req.body.username
+    let password = req.body.password
+    let isNewUser = req.body.isNewUser
+    let privKey = req.body.privKey
+    let pubKey = req.body.pubKey
+
+    // console.log(username, password)
+
+
+    if (!isNewUser) {
+        if (userExists(username, password) === 1) {
+            res.send({ privKey: users[username]['private-key'], pubKey: users[username]['public-key'] })
+        } else {
+            res.sendStatus(401)
+        }
+    } else {
+        if (userExists(username, password) === -1) {//no user with this acc
+            addUser(username, password, privKey, pubKey)
+            res.send({ privKey: users[username]['private-key'], pubKey: users[username]['public-key'] })
+        } else {
+            res.sendStatus(402)
+        }
+    }
 })
 
 https.createServer(key_options, app).listen(port);

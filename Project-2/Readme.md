@@ -16,4 +16,6 @@ Another client allows the user to use the platform in an encrypted manner. It hi
 
 
 For the purposes of this project:
-public/private key pairs are stored on the server - I know this is bad, ideally the private key would be stored on the client device or encrypted in some way.  
+public/private key pairs are stored on the server - I know this is bad, ideally the private key would be stored on the client device or encrypted in some way.
+
+Logins are not very secure - ideally this would be done through a oauth system like "login with google" or "login with facebook"
