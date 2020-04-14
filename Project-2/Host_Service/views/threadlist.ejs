@@ -22,8 +22,7 @@
     <input id="newthread-title" style="width: 70%; background-color: chartreuse; margin-bottom: 5px;"
         placeholder="New Thread Title" value="" required></input>
     <textarea placeholder="The first post" id="newthread-container"
-        style="width: 70%; min-height: 100px; background-color: chartreuse;" required>
-    </textarea>
+        style="width: 70%; min-height: 100px; background-color: chartreuse;" required></textarea>
     <br>
     <button onclick="postthread()">Create Thread</button>
 </div>
@@ -42,7 +41,7 @@
     <ul class="feedList">
         <% thread.forEach((e, i) => { %>
         <li style="background-color: thistle;">
-            <p style="margin-top: 0px; margin-bottom: 0px;" onclick="moveToThread('<%= i %>')">
+            <p style="margin-top: 0px; margin-bottom: 0px;padding: 5px;" onclick="moveToThread('<%= i %>')">
                 <%= e.name %>
                 <br>
                 By: <%= e.content[0].username %>

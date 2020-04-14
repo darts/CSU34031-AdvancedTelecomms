@@ -1,12 +1,12 @@
-<div onclick="returnHome()">
-    BAAAAAACK
+<div onclick="returnHome()" style="background-color: brown; width: 100px;">
+    Home
 </div>
 <div class="feed">
-    Thread: <%= thread.name %>
+    Topic: <%= thread.name %>
     <ul class="feedList">
         <% thread.content.forEach((e, i) => { %>
         <li style="background-color: thistle;">
-            <p>
+            <p style="margin: 0px;padding-left: 10px;">
                 <%= e.content %>
                 <br>
                 By: <%= e.username %> <br>
@@ -14,5 +14,13 @@
             </p>
         </li><br>
         <% }); %>
+        <li style="background-color: thistle;">
+            <p style="padding-left: 10px;">
+                Add To Discussion.
+                <textarea id="newthreadPost" placeholder="Your inspiring message"
+                    style='min-height: 50px; min-width: 600px;'></textarea>
+                <br>
+                <button onclick="addPost()">Post</button> </p>
+        </li>
     </ul>
 </div>

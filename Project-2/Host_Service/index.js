@@ -105,14 +105,13 @@ let createThread = (username, title, content) => {
         "content": [
             {
                 "username": username,
-                "timestamp": 1586621388000,
+                "timestamp": sysClock.getTime(),
                 "content": content
             }
         ]
     })
     writeThreadList(threads)
 }
-
 
 /**
  * Enum for adding messages to thread
@@ -152,6 +151,11 @@ app.get('/thread', (req, res) => {
 app.post('/newThread', (req, res) => {
     // console.log(req.body)
     createThread(req.body.user, req.body.title, req.body.content)
+    res.sendStatus(200)
+})
+
+app.post('/newPost', (req, res) => {
+    addMessageToThread({ threadID: req.body.thread, username: req.body.user, content: req.body.content })
     res.sendStatus(200)
 })
 
