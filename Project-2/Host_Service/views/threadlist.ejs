@@ -45,8 +45,8 @@
     <ul class="feedList">
         <% thread.forEach((e, i) => { %>
         <li style="background-color: thistle;" onclick="moveToThread('<%= i %>')">
-            <p style="margin-top: 0px; margin-bottom: 0px;padding: 5px;">
-                <div id="head-<%= i %>"><%= e.name %></div>
+            <p style="margin-top: 0px; margin-bottom: 0px;padding: 5px; word-wrap:break-word;">
+                <div id="head-<%= i %>" style="word-wrap:break-word;"><%= e.name %></div>
                 <br>
                 By: <%= e.content[0].username %>
             </p>

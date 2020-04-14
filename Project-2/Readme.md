@@ -23,3 +23,5 @@ public/private key pairs are stored on the server - I know this is bad, ideally 
 Logins are not very secure - ideally this would be done through a oauth system like "login with google" or "login with facebook"
 
 Ideally the user would also store the list of users that can view each of their threads
+
+Each user's friends list is stored on the server, should be stored locally

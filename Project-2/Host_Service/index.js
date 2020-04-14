@@ -102,9 +102,10 @@ let addUser = (username, password, privKey, pubKey) => {
  * @param {String} title 
  * @param {String} content
  */
-let createThread = (username, title, content) => {
+let createThread = (username, title, content, users) => {
     threads.push({
         "name": title,
+        "users": users,
         "content": [
             {
                 "username": username,
@@ -180,7 +181,7 @@ app.get('/thread', (req, res) => {
 
 app.post('/newThread', (req, res) => {
     // console.log(req.body)
-    createThread(req.body.user, req.body.title, req.body.content)
+    createThread(req.body.user, req.body.title, req.body.content, req.body.users)
     res.sendStatus(200)
 })
 

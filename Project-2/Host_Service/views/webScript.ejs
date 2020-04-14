@@ -10,10 +10,12 @@
     let curThread, threads
     let cryptoOnly = false
 
-    let friends = ['mic']
+    let friends = ['darts', 'mic']
 
 
     rsa.generateKeyPair(function (keyPair) { pubKey = keyPair.publicKey; privKey = keyPair.privateKey; })
+
+
     let moveToThread = (threadID) => {
         fetch(threadAddr + threadID).then((res) => {
             return res.json()
@@ -44,12 +46,19 @@
         })
     }
 
+    let genKeyList = (arr) => {
+        return arr.map(e => pkList[e])
+    }
+
     let postthread = () => {
         let text = document.getElementById('newthread-container').value
         let title = document.getElementById('newthread-title').value
         if (cryptoOnly) {
-            text = JSON.stringify(crypt.encrypt(pubKey, text))
-            title = JSON.stringify(crypt.encrypt(pubKey, title))
+            text = `${crypt.encrypt(genKeyList(friends), text)}`
+            title = `${crypt.encrypt(genKeyList(friends), title)}`
+
+            // text = JSON.stringify(crypt.encrypt(pubKey, text))
+            // title = JSON.stringify(crypt.encrypt(pubKey, title))
         }
         // console.log(JSON.stringify({ user: userName, title: title, content: text }))
 
@@ -59,7 +68,7 @@
                 'Accept': 'application/json',
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify({ user: userName, title: title, content: text })
+            body: JSON.stringify({ user: userName, title: title, content: text, users: friends })
         }).then(res => {
             return res.json()
         }).then(res => {
@@ -69,6 +78,9 @@
 
     let addPost = () => {
         let content = document.getElementById('newthreadPost').value
+        if (cryptoOnly) {
+            content = JSON.stringify(crypt.encrypt(genKeyList(threads[curThread]['users']), text))
+        }
         fetch(newPostAddr, {
             method: "POST",
             headers: {
@@ -99,10 +111,10 @@
             privKey = res.privKey
             pubKey = res.pubKey
             userName = usrname
-            console.log(res)
+            // console.log(res)
             pkList = res.allPubs
             document.getElementById('popupbox').style.visibility = 'hidden'
-            document.getElementById('userlogin').innerText = `Logged in as: ${userName}`
+            document.getElementById('userlogin').innerText = `Logged in as: ${userName} `
         })
     }
 
@@ -115,7 +127,7 @@
 
                 document.getElementById(`head-${i}`).innerText = decrypt.message
             } catch (error) {
-                // console.log(error)
+                console.log(error)
                 document.getElementById(`head-${i}`).parentNode.parentNode.removeChild(document.getElementById(`head-${i}`).parentNode)
             }
         })

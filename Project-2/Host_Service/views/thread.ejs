@@ -3,8 +3,10 @@
         Home
     </div>
 </div>
-Thread Topic: <div id="title">
-    <%= thread.name %>
+<div style="padding-right: 6px; padding-left: 25px;">
+    Thread Topic: <div id="title">
+        <%= thread.name %>
+    </div>
 </div>
 <div class="feed">
     <ul class="feedList">
@@ -18,7 +20,7 @@ Thread Topic: <div id="title">
                 By: <%= e.username %> <br>
                 At: <%= new Date(e.timestamp).toUTCString() %>
             </p>
-        </li><br>
+        </li>
         <% }); %>
         <li style="background-color: thistle;">
             <p style="padding-left: 10px;">
