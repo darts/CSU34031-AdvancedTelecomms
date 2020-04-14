@@ -32,7 +32,11 @@ The standard webclient allows a user to interact with the website, visit threads
 When the user is logged in, they have the option to toggle a 'crypto mode' where they will veiw decrypted versions of the threads they are a member of. When in this mode, creating a thread will result in a thread that is encrypted and only visible to that user's 'friends'. When posting to a thread in crypto mode, the post will be visible to the 'friends' of the creator of that thread.</p>
 <br>
 <h4 id="the-platform">The Platform:</h4>
-<p>{some pics}</p>
+<p><img src="file:////Users/darts/Documents/Git-Some/CSU34031-AdvancedTelecomms/Project-2/Screenshot%202020-04-14%20at%2023.54.04.png" alt="encrypted-view">
+Encrypted view.
+<br></p>
+<p><img src="file:////Users/darts/Documents/Git-Some/CSU34031-AdvancedTelecomms/Project-2/Screenshot%202020-04-14%20at%2023.54.50.png" alt="decrypted-view">
+Decrypted view.</p>
 <br>
 <h4 id="the-physical-crypto">The Physical Crypto</h4>
 <p>I used a library called <a href="https://github.com/juhoen/hybrid-crypto-js">hybrid-crypto-js</a> (<a href="https://github.com/juhoen/hybrid-crypto-js">https://github.com/juhoen/hybrid-crypto-js</a>) to perform the encryption and decryption. It is an RSA+AES hybrid encryption system. I chose this library as it allowed me to simplify the design of the system as I could use public-private key cryptography but with a much smaller overhead. The library encrypts content using AES and then encrypts the AES keys with multiple public RSA keys. This negates the requirement for exchanging symmetric keys and provides better performance than pure RSA encryption.</p>

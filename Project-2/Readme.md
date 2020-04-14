@@ -17,7 +17,12 @@ When the user is logged in, they have the option to toggle a 'crypto mode' where
 
 #### The Platform:
 
-{some pics}
+![encrypted-view](Screenshot%202020-04-14%20at%2023.54.04.png)
+Encrypted view.
+<br>
+
+![decrypted-view](Screenshot%202020-04-14%20at%2023.54.50.png)
+Decrypted view.
 
 <br>
 
@@ -40,8 +45,6 @@ Ideally the public keys would be visible on a public service like [MIT's](https:
 Each thread is associated with a list of users and their public keys. This list is those individuals in the creator's 'secure group' (friends). This list is controlled by the creator of the thread, only they can add or remove people from the list. The application blocks other users from modifying this list.  
 If a user is removed from the list, they will continue to be able to read messages that were sent while they were a member but any subsequent messages will appear as ciphertext. The title of the thread is re-encrypted to prevent the user from seeing changes.  
 If a user is added to the list ('secure group'), the title of the thread is re-encrypted including the new user's public key so they can view it. They will not be able to view messages that were sent before they were added to the group (similar to WhatsApp) but all future messages are visible to them (unless of course they are removed from the group).
-
-
 
 
 
