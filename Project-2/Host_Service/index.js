@@ -1,6 +1,8 @@
 const https = require("https")
 const helmet = require("helmet")
 
+var RSA = require('hybrid-crypto-js').RSA;
+var Crypt = require('hybrid-crypto-js').Crypt;
 
 const express = require('express'), app = express()
 const fs = require('fs')
@@ -47,7 +49,7 @@ let writeThreadList = (thread) => {
 
 /**
  * Read and return all users (**WARNING** synchronous)
- * @return {Array<username:{pwd:String, api-key:String}>}
+ * @return {{pwd:String, api-key:String}}
  */
 let readUserList = () => {
     return JSON.parse(fs.readFileSync(userPath, 'utf8'))
@@ -145,7 +147,17 @@ let userExists = (username, password) => {
     return 1
 }
 
-
+/**
+ * Returns user object with public keys only
+ * 
+ */
+let getPublicKeys = () => {
+    let res = {}
+    for (let key in users) {
+        res[key] = users[key]['public-key']
+    }
+    return res
+}
 
 
 app.get('/', (req, res) => {
@@ -156,7 +168,7 @@ app.get('/', (req, res) => {
 
 app.get('/home', (req, res) => {
     ejs.renderFile('./views/home.ejs', { thread: threads }).then((e) => {
-        res.send({ html: e })
+        res.send({ html: e, tjson: threads })
     })
 })
 
@@ -189,14 +201,15 @@ app.post('/loginCreate', (req, res) => {
 
     if (!isNewUser) {
         if (userExists(username, password) === 1) {
-            res.send({ privKey: users[username]['private-key'], pubKey: users[username]['public-key'] })
+
+            res.send({ privKey: users[username]['private-key'], pubKey: users[username]['public-key'], allPubs: getPublicKeys() })
         } else {
             res.sendStatus(401)
         }
     } else {
         if (userExists(username, password) === -1) {//no user with this acc
             addUser(username, password, privKey, pubKey)
-            res.send({ privKey: users[username]['private-key'], pubKey: users[username]['public-key'] })
+            res.send({ privKey: users[username]['private-key'], pubKey: users[username]['public-key'], allPubs: getPublicKeys() })
         } else {
             res.sendStatus(402)
         }

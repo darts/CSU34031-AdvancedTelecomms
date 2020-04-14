@@ -1,0 +1,1 @@
+JSON.stringify(crypt.encrypt(pubKey, "test"))

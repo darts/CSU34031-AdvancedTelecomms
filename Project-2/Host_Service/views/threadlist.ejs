@@ -15,16 +15,19 @@
         visibility: hidden;
     }
 </style>
-<div id="userlogin" style="width: 100%; text-align: center; margin-bottom: 8px; padding: 3px; background-color: blue;"
-    onclick="document.getElementById('popupbox').style.visibility = 'visible'">
-    Login</div>
-<div class="">
-    <input id="newthread-title" style="width: 70%; background-color: chartreuse; margin-bottom: 5px;"
-        placeholder="New Thread Title" value="" required></input>
-    <textarea placeholder="The first post" id="newthread-container"
-        style="width: 70%; min-height: 100px; background-color: chartreuse;" required></textarea>
-    <br>
-    <button onclick="postthread()">Create Thread</button>
+<div style="padding-right: 6px; padding-left: 25px;">
+    <div id="userlogin"
+        style="width: 100%; text-align: center; margin-bottom: 8px; padding: 3px; background-color: blue;"
+        onclick="document.getElementById('popupbox').style.visibility = 'visible'">
+        Login</div>
+    <div class="">
+        <input id="newthread-title" style="width: 100%; background-color: chartreuse; margin-bottom: 5px;"
+            placeholder="New Thread Title" value="" required></input>
+        <textarea placeholder="The first post" id="newthread-container"
+            style="width: 100%; min-height: 100px; background-color: chartreuse;" required></textarea>
+        <br>
+        <button onclick="postthread()">Create Thread</button>
+    </div>
 </div>
 <div id="popupbox">
     <center>Username:</center>
@@ -41,13 +44,20 @@
 <div class="feed">
     <ul class="feedList">
         <% thread.forEach((e, i) => { %>
-        <li style="background-color: thistle;">
-            <p style="margin-top: 0px; margin-bottom: 0px;padding: 5px;" onclick="moveToThread('<%= i %>')">
-                <%= e.name %>
+        <li style="background-color: thistle;" onclick="moveToThread('<%= i %>')">
+            <p style="margin-top: 0px; margin-bottom: 0px;padding: 5px;">
+                <div id="head-<%= i %>"><%= e.name %></div>
                 <br>
                 By: <%= e.content[0].username %>
             </p>
-        </li><br>
+        </li>
         <% }); %>
     </ul>
+</div>
+
+<div style="padding-right: 6px; padding-left: 25px;">
+    <div style="width:100%; text-align: center; background-color: darkkhaki; padding-top: 5px;"
+        onclick="convertToCrypto()">
+        Toggle Crypto
+    </div>
 </div>

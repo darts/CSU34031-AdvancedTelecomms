@@ -1,13 +1,19 @@
-<div onclick="returnHome()" style="background-color: brown; width: 100px;">
-    Home
+<div style="padding-right: 6px; padding-left: 25px;">
+    <div onclick="returnHome()" style="background-color: brown; width: 100px; ">
+        Home
+    </div>
+</div>
+Thread Topic: <div id="title">
+    <%= thread.name %>
 </div>
 <div class="feed">
-    Topic: <%= thread.name %>
     <ul class="feedList">
         <% thread.content.forEach((e, i) => { %>
         <li style="background-color: thistle;">
             <p style="margin: 0px;padding-left: 10px;">
-                <%= e.content %>
+                <div class='content'>
+                    <%= e.content %>
+                </div>
                 <br>
                 By: <%= e.username %> <br>
                 At: <%= new Date(e.timestamp).toUTCString() %>

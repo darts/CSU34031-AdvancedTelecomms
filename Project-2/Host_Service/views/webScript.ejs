@@ -1,12 +1,18 @@
 <script>
     const rsa = new RSA()
+    const crypt = new Crypt()
     const threadAddr = " https://localhost:3000/thread?thread="
     const homeAddr = " https://localhost:3000/home"
     const newThreadAddr = "https://localhost:3000/newThread"
     const newPostAddr = "https://localhost:3000/newPost"
     const userAddr = "https://localhost:3000/loginCreate"
-    let userName, pubKey, privKey
-    let curThread;
+    let userName, pubKey, privKey, pkList
+    let curThread, threads
+    let cryptoOnly = false
+
+    let friends = ['mic']
+
+
     rsa.generateKeyPair(function (keyPair) { pubKey = keyPair.publicKey; privKey = keyPair.privateKey; })
     let moveToThread = (threadID) => {
         fetch(threadAddr + threadID).then((res) => {
@@ -15,6 +21,8 @@
             console.log(res)
             document.body.innerHTML = res.html
             curThread = threadID
+            if (cryptoOnly)
+                filterSingleThread()
         }).catch(err => {
             console.log(err)
             alert("Error connecting to server")
@@ -27,6 +35,9 @@
         }).then(res => {
             // console.log(res)
             document.body.innerHTML = res.html
+            threads = res.tjson
+            if (cryptoOnly)
+                filterThreads()
         }).catch(err => {
             console.log(err)
             alert("Error connecting to server")
@@ -36,7 +47,11 @@
     let postthread = () => {
         let text = document.getElementById('newthread-container').value
         let title = document.getElementById('newthread-title').value
-        console.log(JSON.stringify({ user: userName, title: title, content: text }))
+        if (cryptoOnly) {
+            text = JSON.stringify(crypt.encrypt(pubKey, text))
+            title = JSON.stringify(crypt.encrypt(pubKey, title))
+        }
+        // console.log(JSON.stringify({ user: userName, title: title, content: text }))
 
         fetch(newThreadAddr, {
             method: "POST",
@@ -46,10 +61,10 @@
             },
             body: JSON.stringify({ user: userName, title: title, content: text })
         }).then(res => {
+            return res.json()
+        }).then(res => {
             returnHome()
         })
-        // alert("gotta actually send something")
-        // console.log(document.getElementById('newthread-container').value)
     }
 
     let addPost = () => {
@@ -84,10 +99,51 @@
             privKey = res.privKey
             pubKey = res.pubKey
             userName = usrname
-
+            console.log(res)
+            pkList = res.allPubs
             document.getElementById('popupbox').style.visibility = 'hidden'
             document.getElementById('userlogin').innerText = `Logged in as: ${userName}`
         })
     }
 
+    let filterThreads = () => {
+        threads.forEach((e, i) => {
+            try {
+                //TODO signatures
+                let decrypt = crypt.decrypt(privKey, e.name)
+                console.log(decrypt)
+
+                document.getElementById(`head-${i}`).innerText = decrypt.message
+            } catch (error) {
+                // console.log(error)
+                document.getElementById(`head-${i}`).parentNode.parentNode.removeChild(document.getElementById(`head-${i}`).parentNode)
+            }
+        })
+    }
+
+    let filterSingleThread = () => {
+        let decryptTitle = crypt.decrypt(privKey, document.getElementById('title').innerText)
+        document.getElementById('title').innerText = decryptTitle.message
+
+        let itList = document.getElementsByClassName('content')
+
+        for (let e of itList) {
+            try {
+                let dec = crypt.decrypt(privKey, e.innerText)
+                e.innerText = dec.message
+            } catch (error) {
+                e.parentNode.parentNode.removeChild(e.parentNode)
+            }
+        }
+    }
+
+    let convertToCrypto = () => {
+        cryptoOnly = !cryptoOnly
+        returnHome()
+        if (cryptoOnly) {
+            filterThreads()
+        }
+    }
+
+    returnHome()
 </script>
